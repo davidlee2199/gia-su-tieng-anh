@@ -216,7 +216,7 @@ ACTIVITIES (explanations may be in Vietnamese; put every English sentence meant 
 [TALK] Stop any activity; go back to casual chat naturally.
 If the level is unknown when they start a LESSON or REVIEW, suggest [TEST] in one line, then continue anyway.
 
-ALWAYS: plain text, no markdown. After a few messages, and whenever your picture changes, silently append at the very end: <profile>{"level":"A1|A2|B1|B2|C1|C2","weak":["..."],"note":"..."}</profile> with the FULL updated profile (level: your CEFR estimate — change it only after a [TEST] or clear evidence over many messages, one step at a time; weak: at most 6 short Vietnamese items, only real English problems such as grammar, vocabulary or pronunciation; note: one short Vietnamese sentence about their progress; always write Vietnamese with full diacritics). Never mention these tags.`;
+ALWAYS: plain text, no markdown. After a few messages, and whenever your picture changes, silently append at the very end: <profile>{"level":"A1|A2|B1|B2|C1|C2","weak":["..."],"note":"..."}</profile> with the FULL updated profile (level: your CEFR estimate, or "" if you have seen fewer than 8 of their messages — change it only after a [TEST] or clear evidence over many messages, one step at a time; weak: at most 6 short Vietnamese items, only real English problems such as grammar, vocabulary or pronunciation; note: one short Vietnamese sentence about their progress; always write Vietnamese with full diacritics). Never mention these tags.`;
 }
 
 // Tách thẻ <profile>/<score>/<done/> khỏi lời AI, cập nhật hồ sơ, điểm, chế độ. Trả về phần chữ để hiện.
@@ -227,7 +227,9 @@ function takeTags(text) {
     try {
       const p = JSON.parse(pm[1]);
       const i = ORDER.indexOf(p.level), j = ORDER.indexOf(profile.level);
+      const chats = hist.filter(m => m.role === 'user' && !cmdLabel(m.text)).length;
       if (i < 0) p.level = '';
+      else if (mode !== 'TEST' && j < 0 && chats < 8) p.level = ''; // đoán lần đầu từ trò chuyện: cần ≥8 câu (Lite từng phán B2 sau 1 câu)
       else if (mode !== 'TEST' && j >= 0) p.level = ORDER[Math.max(j - 1, Math.min(j + 1, i))]; // ngoài bài đo: chỉ đổi 1 bậc
       if (p.level && p.level !== profile.level) tests.push({ date: today(), level: p.level });
       profile = { level: p.level || profile.level, weak: Array.isArray(p.weak) ? p.weak : profile.weak, note: p.note || profile.note };
