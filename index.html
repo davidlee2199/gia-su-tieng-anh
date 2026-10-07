@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <style>
-  :root { --main:#1d4ed8; --bg:#f4f6fb; --ai:#fff; --me:#dbe7ff; --fix:#fff4e0; --ink:#1a1f2b; --mute:#6b7280; --line:#e5e7eb; }
+  :root { --main:#1d4ed8; --bg:#f4f6fb; --ai:#fff; --me:#dbe7ff; --fix:#fff4e0; --ink:#1a1f2b; --mute:#6b7280; --ok:#15803d; --line:#e5e7eb; }
   * { box-sizing:border-box; }
   body { margin:0; font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink);
          height:100dvh; display:flex; flex-direction:column; }
@@ -17,17 +17,48 @@
   header h1 small { display:block; font-size:12px; font-weight:400; opacity:.85; }
   #level { background:#fff; color:var(--main); border:0; border-radius:99px; padding:3px 11px; font-weight:700; font-size:13px; }
   #openSet { background:none; border:0; color:#fff; font-size:20px; padding:4px; }
+  nav { display:flex; background:#fff; border-bottom:1px solid var(--line); }
+  nav button { flex:1; border:0; background:none; padding:9px; font-size:15px; font-weight:600; color:var(--mute); border-bottom:3px solid transparent; }
+  nav button.on { color:var(--main); border-bottom-color:var(--main); }
+  .view { flex:1; display:flex; flex-direction:column; min-height:0; }
+  .view[hidden] { display:none; }
   #chat { flex:1; overflow-y:auto; padding:10px 12px 16px; }
   .msg { max-width:86%; margin:6px 0; padding:9px 12px; border-radius:16px; white-space:pre-wrap; word-wrap:break-word; }
   .ai { background:var(--ai); box-shadow:0 1px 2px #0001; border-bottom-left-radius:4px; }
   .me { background:var(--me); margin-left:auto; border-bottom-right-radius:4px; }
   .cmd { margin:10px auto; text-align:center; color:var(--mute); font-size:13px; }
+  .say { color:var(--main); font-weight:600; }
   .fix { display:block; background:var(--fix); border-radius:8px; padding:4px 8px; margin:4px 0 0; font-size:14.5px; }
   .ai .play { border:0; background:none; font-size:17px; padding:0 0 0 4px; }
+  #modebar { display:flex; align-items:center; gap:8px; background:#eef3ff; color:var(--main); padding:6px 12px; font-size:13.5px; font-weight:600; border-top:1px solid var(--line); }
+  #modebar[hidden] { display:none; }
+  #modebar span { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #modebar button { border:1px solid var(--main); background:#fff; color:var(--main); border-radius:8px; padding:3px 10px; font-weight:600; }
   footer { display:flex; gap:6px; padding:8px 10px calc(8px + env(safe-area-inset-bottom)); background:#fff; border-top:1px solid var(--line); }
   #text { flex:1; border:1px solid #d1d5db; border-radius:12px; padding:10px; font:inherit; resize:none; height:46px; }
   footer button { border:0; border-radius:12px; min-width:48px; font-size:20px; background:var(--main); color:#fff; }
   #mic.on { background:#dc2626; }
+  #road { overflow-y:auto; padding:12px 12px 24px; }
+  .card { background:#fff; border-radius:14px; padding:12px 14px; margin-bottom:12px; box-shadow:0 1px 2px #0001; }
+  .card h2 { font-size:16px; margin:0 0 6px; }
+  .stats { display:flex; gap:8px; text-align:center; }
+  .stats div { flex:1; background:var(--bg); border-radius:10px; padding:8px 4px; }
+  .stats b { display:block; font-size:22px; color:var(--main); }
+  .stats span { font-size:12px; color:var(--mute); }
+  .acts { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:10px; }
+  .acts button { border:1px solid var(--main); background:#fff; color:var(--main); border-radius:10px; padding:6px 2px; font-size:12.5px; font-weight:600; line-height:1.25; }
+  .acts button i { display:block; font-style:normal; font-size:20px; }
+  .chips span { display:inline-block; background:var(--fix); border-radius:99px; padding:2px 10px; margin:3px 4px 0 0; font-size:13px; }
+  .bar { height:8px; background:var(--bg); border-radius:99px; overflow:hidden; margin:4px 0 8px; }
+  .bar i { display:block; height:100%; background:var(--main); }
+  .unit { display:flex; align-items:center; gap:10px; padding:9px 0; border-top:1px solid var(--line); }
+  .unit .t { flex:1; min-width:0; }
+  .unit .t b { display:block; font-size:15px; }
+  .unit .t small { color:var(--mute); font-size:12.5px; }
+  .unit .s { font-weight:700; color:var(--ok); white-space:nowrap; }
+  .unit button { border:1px solid var(--main); background:#fff; color:var(--main); border-radius:8px; padding:5px 10px; font-weight:600; }
+  .unit.next button { background:var(--main); color:#fff; }
+  .hint { color:var(--mute); font-size:13px; }
   dialog { border:0; border-radius:14px; width:min(420px,92vw); }
   dialog h3 { margin:0 0 8px; }
   dialog label { display:block; margin:10px 0 4px; font-weight:600; font-size:14px; }
@@ -35,9 +66,6 @@
   .row { display:flex; gap:8px; margin-top:14px; }
   .row button { flex:1; padding:10px; border-radius:10px; border:1px solid var(--main); background:#fff; color:var(--main); font-weight:600; }
   .row button.pri { background:var(--main); color:#fff; }
-  .big { font-size:34px; font-weight:800; color:var(--main); margin:0; }
-  .chips span { display:inline-block; background:var(--fix); border-radius:99px; padding:2px 10px; margin:3px 4px 0 0; font-size:13px; }
-  .hint { color:var(--mute); font-size:13px; }
 </style>
 </head>
 <body>
@@ -46,22 +74,24 @@
   <button id="level" aria-label="Xem trình độ">chưa rõ</button>
   <button id="openSet" aria-label="Cài đặt">⚙️</button>
 </header>
-<main id="chat"></main>
-<footer>
-  <button id="mic" aria-label="Nói">🎤</button>
-  <textarea id="text" placeholder="Nhắn cho Sam…"></textarea>
-  <button id="send" aria-label="Gửi">➤</button>
-</footer>
+<nav>
+  <button data-view="vChat" class="on">💬 Nói chuyện</button>
+  <button data-view="vRoad">📊 Lộ trình & Điểm</button>
+</nav>
 
-<dialog id="prog">
-  <h3>Trình độ của bạn</h3>
-  <p class="big" id="pLevel"></p>
-  <p class="hint" id="pNote"></p>
-  <div id="pWeak"></div>
-  <p class="hint" id="pHist"></p>
-  <p class="hint">Sam tự đánh giá qua cách bạn nói chuyện và cập nhật dần. Thang CEFR: A1 mới bắt đầu → B2 giao tiếp trôi chảy → C2 như người bản xứ.</p>
-  <div class="row"><button class="pri" onclick="this.closest('dialog').close()">Đóng</button></div>
-</dialog>
+<section id="vChat" class="view">
+  <main id="chat"></main>
+  <div id="modebar" hidden><span id="modeText"></span><button id="stop">Dừng, nói chuyện tiếp</button></div>
+  <footer>
+    <button id="mic" aria-label="Nói">🎤</button>
+    <textarea id="text" placeholder="Nhắn cho Sam…"></textarea>
+    <button id="send" aria-label="Gửi">➤</button>
+  </footer>
+</section>
+
+<section id="vRoad" class="view" hidden>
+  <div id="road"></div>
+</section>
 
 <dialog id="set">
   <h3>Cài đặt</h3>
@@ -71,7 +101,7 @@
   <label for="model">Model</label>
   <input id="model">
   <div class="row">
-    <button id="reset">Xoá trò chuyện & trình độ</button>
+    <button id="reset">Xoá hết dữ liệu</button>
     <button id="save" class="pri">Lưu</button>
   </div>
 </dialog>
@@ -80,8 +110,61 @@
 const $ = s => document.querySelector(s);
 const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 
-// Chủ đề giao tiếp theo khung CEFR. Sam tự lái câu chuyện sang các chủ đề này, không dạy thành bài.
+// GIÁO TRÌNH: khung CEFR A1→B2, đích là giao tiếp trôi chảy. Mỗi bài: tình huống · ngữ pháp · phát âm (nhắm lỗi người Việt).
+const LEVELS = ['A1', 'A2', 'B1', 'B2'];
+const LEVEL_GOAL = {
+  A1: 'Sống sót cơ bản: giới thiệu bản thân, hỏi đáp đơn giản, mua bán, hỏi đường.',
+  A2: 'Giao tiếp hằng ngày: kể chuyện đã qua, hẹn gặp, đi du lịch, gọi điện, đi khám.',
+  B1: 'Tự tin trong công việc & đời sống: phỏng vấn, small talk, nêu ý kiến, họp, xử lý sự cố.',
+  B2: 'Trôi chảy & chuyên nghiệp: thuyết trình, đàm phán, tranh luận, nói tự nhiên.',
+};
+const UNITS = [
+  ['A1-01', 'Chào hỏi & giới thiệu bản thân', 'to be (am/is/are), đại từ nhân xưng', 'âm cuối /s/ trong it\'s, what\'s, that\'s'],
+  ['A1-02', 'Gia đình & bạn bè', 'have/has, sở hữu \'s, my/your/his/her', 'âm /θ/ /ð/: three, this, mother'],
+  ['A1-03', 'Công việc & nghề nghiệp', 'a/an + nghề, hiện tại đơn (I work / she works)', 'đuôi -s đọc /s/ /z/ /ɪz/'],
+  ['A1-04', 'Thói quen hằng ngày & giờ giấc', 'hiện tại đơn + always/usually/never, cách nói giờ', 'âm cuối /t/ /d/ không được nuốt'],
+  ['A1-05', 'Số đếm, giá tiền, mua sắm', 'How much/How many, this/that/these/those', 'trọng âm thirteen vs thirty'],
+  ['A1-06', 'Gọi món ăn uống', 'Can I have…?, some/any, danh từ đếm được/không đếm được', 'âm /ʃ/ /tʃ/: fish, chips, cheese'],
+  ['A1-07', 'Hỏi & chỉ đường', 'there is/are, giới từ nơi chốn, câu mệnh lệnh', 'cụm phụ âm /st/ /str/: street, straight'],
+  ['A1-08', 'Sở thích & cuối tuần', 'like/love + V-ing, can (khả năng)', 'âm cuối /ŋ/ trong -ing'],
+  ['A1-09', 'Thời tiết & quần áo', 'hiện tại tiếp diễn (I am wearing…)', 'âm cuối /l/ /r/: cold, wear'],
+  ['A1-10', 'Cuối tuần trước bạn làm gì?', 'quá khứ đơn: was/were, V-ed, động từ bất quy tắc thường gặp', 'đuôi -ed đọc /t/ /d/ /ɪd/'],
+  ['A2-01', 'Kể một câu chuyện đã xảy ra', 'quá khứ đơn + first/then/after that/finally', 'ngữ điệu khi kể chuyện'],
+  ['A2-02', 'Lên kế hoạch & hẹn gặp', 'be going to, hiện tại tiếp diễn chỉ lịch hẹn', 'trọng âm từ 2 âm tiết: meeting, tomorrow'],
+  ['A2-03', 'Du lịch: sân bay & khách sạn', 'câu hỏi lịch sự Could you…? / Would you…?', 'ngữ điệu câu hỏi Yes/No (lên) vs Wh- (xuống)'],
+  ['A2-04', 'So sánh: sản phẩm, thành phố', 'so sánh hơn & so sánh nhất', 'âm yếu /ə/: than, a, to'],
+  ['A2-05', 'Sức khoẻ & đi khám bệnh', 'should/shouldn\'t, have to', 'nguyên âm đôi /eɪ/ /aɪ/: pain, ache, eye'],
+  ['A2-06', 'Gọi điện & để lại lời nhắn', 'will (quyết định tức thì), đánh vần tên, đọc số điện thoại', 'bảng chữ cái: A E I G J'],
+  ['A2-07', 'Nhà cửa & thuê nhà', 'much/many/a lot of, there is/are + some/any', 'nối âm: an apple, there are'],
+  ['A2-08', 'Bạn đã từng…? Kinh nghiệm sống', 'hiện tại hoàn thành với ever/never', 'dạng rút gọn I\'ve, she\'s, haven\'t'],
+  ['A2-09', 'Mua sắm, đổi trả, phàn nàn nhẹ', 'too/enough, one/ones', 'nhấn từ quan trọng trong câu'],
+  ['A2-10', 'Tin nhắn & email công việc đơn giản', 'would like to, cấu trúc email ngắn', 'đọc to email cho trôi chảy'],
+  ['B1-01', 'Giới thiệu bản thân khi phỏng vấn', 'hiện tại hoàn thành vs quá khứ đơn', 'trọng âm từ dài: experience, responsible'],
+  ['B1-02', 'Small talk & giữ cuộc trò chuyện', 'câu hỏi đuôi, So do I / Neither do I, câu hỏi nối tiếp', 'ngữ điệu câu hỏi đuôi'],
+  ['B1-03', 'Nêu ý kiến, đồng ý & phản đối lịch sự', 'I think / In my opinion / I see your point, but…', 'nhấn mạnh để làm rõ ý'],
+  ['B1-04', 'Kể trải nghiệm chi tiết', 'quá khứ tiếp diễn vs quá khứ đơn (while/when)', 'giữ âm cuối khi nói nhanh'],
+  ['B1-05', 'Dự định & dự đoán tương lai', 'will / going to / might / may', 'dạng yếu: I\'ll, it\'ll, won\'t'],
+  ['B1-06', 'Họp nhóm & đưa đề xuất', 'Why don\'t we…? / How about…? / We could…', 'ngắt nhịp theo cụm ý'],
+  ['B1-07', 'Xử lý sự cố & phàn nàn dịch vụ', 'câu điều kiện loại 1, bị động hiện tại', 'giọng lịch sự, không cộc lốc'],
+  ['B1-08', 'Mô tả quy trình & hướng dẫn', 'câu bị động, first/next/once/finally', 'âm /ʒ/ /dʒ/: usually, manager'],
+  ['B1-09', 'Nếu tôi là…: tình huống giả định', 'câu điều kiện loại 2', 'rút gọn I\'d, you\'d'],
+  ['B1-10', 'Kể lại lời người khác nói', 'câu tường thuật (said/told/asked)', 'nghe hiểu nối âm: gonna, wanna, kinda'],
+  ['B2-01', 'Thuyết trình ngắn', 'cấu trúc mở–thân–kết, từ dẫn dắt (firstly, moving on…)', 'ngữ điệu & ngắt nghỉ khi trình bày'],
+  ['B2-02', 'Đàm phán & thuyết phục', 'if / unless / provided that / as long as', 'nhấn câu để thuyết phục'],
+  ['B2-03', 'Tranh luận có lập luận', 'although / however / whereas / on the other hand', 'nói rõ ràng ở tốc độ tự nhiên'],
+  ['B2-04', 'Nói về số liệu & xu hướng', 'rise/fall/increase sharply/slightly, mô tả biểu đồ', 'đọc số lớn, phần trăm, năm'],
+  ['B2-05', 'Tiếc nuối & giả định quá khứ', 'câu điều kiện loại 3, wish, should have', 'dạng yếu: would\'ve, should\'ve'],
+  ['B2-06', 'Nói mềm mỏng, ngoại giao', 'seem/appear, I\'m afraid…, It might be better to…', 'ngữ điệu mềm, xuống giọng nhẹ'],
+  ['B2-07', 'Cụm động từ thông dụng', 'phrasal verbs: pick up, figure out, put off…', 'nối âm phrasal verb: pick it up'],
+  ['B2-08', 'Nói tự nhiên: collocation & thành ngữ', 'collocations (make a decision, take a break…)', 'nhịp & trọng âm câu tự nhiên'],
+  ['B2-09', 'Làm rõ & xử lý hiểu lầm', 'Could you clarify…? / What I meant was…', 'diễn đạt lại khi người nghe không hiểu'],
+  ['B2-10', 'Thảo luận dài chủ đề xã hội', 'tổng hợp: lập luận, ví dụ, kết luận', 'tự nghe lại và sửa lỗi của mình'],
+].map(([id, t, g, p]) => ({ id, t, g, p, lv: id.slice(0, 2) }));
+const unitById = id => UNITS.find(u => u.id === id);
+const ORDER = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+// Chủ đề để Sam lái câu chuyện khi nói chuyện thường (tiếng Anh cho AI hiểu rõ).
 const TOPICS = {
   A1: 'introducing yourself, family and friends, your job, daily routine and time, numbers/prices/shopping, ordering food and drinks, asking for directions, hobbies and weekends, weather and clothes, what you did last weekend',
   A2: 'telling a story from the past, making plans and appointments, travel (airport, hotel), comparing things and places, health and seeing a doctor, phone calls and messages, home and renting, life experiences (have you ever…), shopping returns and small complaints, simple work emails',
@@ -89,71 +172,118 @@ const TOPICS = {
   B2: 'short presentations, negotiating and persuading, structured arguments, numbers and trends, regrets (if I had…), diplomatic language, common phrasal verbs, natural collocations and idioms, clarifying misunderstandings, long discussions on social issues',
 };
 
-let key = load('gs_key', '');
 // Mặc định Flash-Lite: đo 07/10/2026 trả lời 1-2s, bản Flash thường mất 20-76s vì quá tải.
 const DEFAULT_MODEL = 'gemini-flash-lite-latest';
+let key = load('gs_key', '');
 let model = load('gs_model', DEFAULT_MODEL);
 if (model === 'gemini-flash-latest') { model = DEFAULT_MODEL; store('gs_model', model); } // bỏ mặc định cũ đã lưu
 let profile = load('gs_profile', { level: '', weak: [], note: '' });
-let tests = load('gs_tests', []);   // lịch sử level: [{date, level}]
-let hist = load('gs_hist', []);     // {role:'user'|'model', text}
+let scores = load('gs_scores', {});   // { 'A1-03': {score: 8, date} }
+let tests = load('gs_tests', []);     // lịch sử level: [{date, level}]
+let hist = load('gs_hist', []);       // {role:'user'|'model', text}
+let mode = load('gs_mode', '');       // '' = nói chuyện; TEST / LESSON / REVIEW = đang làm hoạt động
+let unit = load('gs_unit', '');       // bài đang học
 const MAX_HIST = 40; // ponytail: chỉ gửi 40 lượt gần nhất; trình độ & điểm yếu dài hạn nằm trong profile
 const today = () => new Date().toLocaleDateString('sv'); // YYYY-MM-DD theo giờ máy
+
+// Bài tiếp theo: bài chưa học đầu tiên kể từ level hiện tại; hết thì quay lại bài chưa học sớm nhất.
+function nextUnit() {
+  const lv = /^C/.test(profile.level) ? 'B2' : profile.level; // C1/C2: ôn từ B2
+  const start = Math.max(0, UNITS.findIndex(u => u.lv === lv));
+  return UNITS.slice(start).find(u => !scores[u.id]) || UNITS.find(u => !scores[u.id]) || UNITS[UNITS.length - 1];
+}
 
 function systemPrompt() {
   const lv = /^(A1|A2|B1|B2)$/.test(profile.level) ? profile.level : /^C/.test(profile.level) ? 'B2' : 'A2';
   const up = { A1: 'A2', A2: 'B1', B1: 'B2', B2: 'B2' }[lv];
-  return `You are Sam, a friendly, relaxed English-speaking friend of a Vietnamese adult. You are NOT a teacher: you chat like a real friend over text — about their day, work, plans, food, travel, hobbies, news, feelings — and you share a bit about yourself too.
+  const u = unitById(unit);
+  return `You are Sam, a friendly, relaxed English-speaking friend of a Vietnamese adult who wants to communicate confidently in English (CEFR B2). Mostly you just chat like a real friend over text — about their day, work, plans, food, travel, hobbies, news, feelings — and share a bit about yourself too. When they ask for an activity (bracketed command), you also know how to teach well.
 You opened this chat with: "Hey! I'm Sam. Nice to meet you! How's your day going so far?" (plus a Vietnamese note that they can use Vietnamese when stuck).
-The friend wants to get good at everyday English conversation. Their estimated level: ${profile.level || 'unknown yet'}. Things they struggle with: ${profile.weak.join('; ') || 'unknown yet'}. Notes: ${profile.note || 'none'}.
+Their estimated level: ${profile.level || 'unknown yet'}. Things they struggle with: ${profile.weak.join('; ') || 'unknown yet'}. Notes: ${profile.note || 'none'}.
+Typical Vietnamese-speaker problems: dropped final consonants and -s/-ed endings, word stress, /θ ð ʃ ʒ/, consonant clusters, missing articles and plurals, tense and verb agreement ("I am agree", "she go"), word-by-word translation.
 
-How to talk:
+CASUAL CHAT (default, and after [TALK]):
 - Always reply in English. Vietnamese is allowed only inside 💡 and ✏️ lines.
-- Write like texting a friend: 1–3 short sentences, warm and natural, then ask ONE follow-up question so the conversation keeps going.
-- Match their level: simple words and short sentences for A1–A2, more natural expressions for B1+. Slightly above their level is good.
-- From time to time, steer the chat toward useful real-life situations for their level, naturally, never as a lesson: ${TOPICS[lv]}; and sometimes ${up} topics: ${TOPICS[up].split(', ').slice(0, 4).join(', ')}.
+- Write like texting a friend: 1–3 short sentences, warm and natural, then ask ONE follow-up question.
+- Match their level, slightly above is good. From time to time steer naturally (never as a lesson) toward useful situations: ${TOPICS[lv]}; and sometimes ${TOPICS[up].split(', ').slice(0, 4).join(', ')}.
 - Whenever their message contains any Vietnamese, first show how to say it in English on a line starting with "💡 " (e.g. "💡 Bạn có thể nói: I'm exhausted today."), then reply to what they meant. Never use "💡" for anything else.
-- Corrections are light, like a friend: only when a mistake matters or keeps repeating, add ONE line at the end starting with "✏️ " with the natural way to say it and at most a few Vietnamese words of why. Never more than one ✏️ line per reply, and no ✏️ line when you already gave a 💡 line; ignore tiny slips.
-- They often speak through speech recognition; a strange word may be a mispronunciation — mention it in the ✏️ line only if it would confuse a listener.
-- Plain text only, no markdown, no emojis other than the ones above.
-- After a few messages, and whenever your picture changes, silently append at the very end: <profile>{"level":"A1|A2|B1|B2|C1|C2","weak":["..."],"note":"..."}</profile> with the FULL updated profile (level: your CEFR estimate from how they write; weak: at most 6 short Vietnamese items, only real English problems such as grammar, vocabulary or pronunciation; note: one short Vietnamese sentence about their progress; always write Vietnamese with full diacritics). Never mention this tag.`;
+- Corrections are light: only when a mistake matters or keeps repeating, add ONE line at the end starting with "✏️ " with the natural way to say it and a few Vietnamese words of why. At most one ✏️ line; ignore tiny slips.
+
+ACTIVITIES (explanations may be in Vietnamese; put every English sentence meant to be read aloud on its own line starting with "🗣 "; one step per reply, wait for the learner each time; when the activity is finished, add <done/> and invite them back to chatting):
+[TEST] Placement test: 10 questions ONE AT A TIME, adapting difficulty (grammar, vocabulary, short reading, 2 open speaking questions), numbered "Câu 1/10". Don't teach during the test. After answer 10: CEFR level, strengths, weak points, profile tag, <done/>.
+[LESSON <unit id>] Teach ${u ? `${u.id} "${u.t}" — grammar: ${u.g}; pronunciation: ${u.p}` : 'the given unit'}. Steps: 1) communication goal (1 line Vietnamese) + 5–6 key phrases; 2) grammar point, short, 2 examples; 3) pronunciation focus with the typical Vietnamese mistake and 3 items to repeat; 4) role-play the situation, you play the other person, 4–6 turns; 5) quick check: 5 questions one at a time, numbered "Câu 1/5"…"Câu 5/5". Only after the 5th answer: say how many were correct, 1 line of feedback, then exactly <score>{"unit":"${u ? u.id : ''}","correct":N,"total":5}</score>, a profile tag, <done/>. Never output a score tag at any other time.
+[REVIEW] 5 short exercises one at a time on their weak points; then say which improved, profile tag, <done/>.
+[TALK] Stop any activity; go back to casual chat naturally.
+If the level is unknown when they start a LESSON or REVIEW, suggest [TEST] in one line, then continue anyway.
+
+ALWAYS: plain text, no markdown. After a few messages, and whenever your picture changes, silently append at the very end: <profile>{"level":"A1|A2|B1|B2|C1|C2","weak":["..."],"note":"..."}</profile> with the FULL updated profile (level: your CEFR estimate — change it only after a [TEST] or clear evidence over many messages, one step at a time; weak: at most 6 short Vietnamese items, only real English problems such as grammar, vocabulary or pronunciation; note: one short Vietnamese sentence about their progress; always write Vietnamese with full diacritics). Never mention these tags.`;
 }
 
-// Tách thẻ <profile> khỏi lời AI, cập nhật hồ sơ. Trả về phần chữ để hiện.
+// Tách thẻ <profile>/<score>/<done/> khỏi lời AI, cập nhật hồ sơ, điểm, chế độ. Trả về phần chữ để hiện.
 function takeTags(text) {
+  const finished = /<done\s*\/?>/.test(text);
   const pm = text.match(/<profile>([\s\S]*?)<\/profile>/);
   if (pm) {
     try {
       const p = JSON.parse(pm[1]);
+      const i = ORDER.indexOf(p.level), j = ORDER.indexOf(profile.level);
+      if (i < 0) p.level = '';
+      else if (mode !== 'TEST' && j >= 0) p.level = ORDER[Math.max(j - 1, Math.min(j + 1, i))]; // ngoài bài đo: chỉ đổi 1 bậc
       if (p.level && p.level !== profile.level) tests.push({ date: today(), level: p.level });
       profile = { level: p.level || profile.level, weak: Array.isArray(p.weak) ? p.weak : profile.weak, note: p.note || profile.note };
       store('gs_profile', profile); store('gs_tests', tests);
     } catch {}
   }
+  const sm = text.match(/<score>([\s\S]*?)<\/score>/);
+  if (sm && finished && mode === 'LESSON') { // chỉ nhận điểm khi bài thật sự kết thúc
+    try {
+      const s = JSON.parse(sm[1]);
+      const id = unitById(s.unit) ? s.unit : unit;
+      const n = Math.max(0, Math.min(10, Math.round(10 * Number(s.correct) / (Number(s.total) || 5))));
+      if (unitById(id) && !isNaN(n)) { scores[id] = { score: n, date: today() }; store('gs_scores', scores); }
+    } catch {}
+  }
+  if (finished) setMode('');
   showLevel();
-  return text.replace(/<profile>[\s\S]*?(<\/profile>|$)/g, '').trim();
+  return text.replace(/<(profile|score)>[\s\S]*?(<\/\1>|$)/g, '').replace(/<\/?done\s*\/?>/g, '').trim();
 }
-// Đọc to mọi dòng trừ dòng góp ý (✏️) và gợi ý tiếng Việt (💡).
-const spoken = text => text.split('\n').filter(l => l.trim() && !/^(✏️|💡)/.test(l.trim())).join(' ');
+// Có dòng 🗣 (lúc học) thì chỉ đọc các dòng đó; nói chuyện thường thì đọc mọi dòng trừ ✏️ 💡.
+function spoken(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const say = lines.filter(l => l.startsWith('🗣'));
+  return (say.length ? say.map(l => l.replace(/^🗣\s*/, '')) : lines.filter(l => !/^(✏️|💡)/.test(l))).join(' ');
+}
 
 function showLevel() { $('#level').textContent = profile.level || 'chưa rõ'; }
 
+function setMode(m) {
+  mode = m; store('gs_mode', mode);
+  const label = { TEST: '📝 Đang đo trình độ', REVIEW: '🔁 Đang ôn điểm yếu', LESSON: `📚 Bài ${unit}: ${unitById(unit)?.t || ''}` }[mode];
+  $('#modebar').hidden = !label;
+  if (label) $('#modeText').textContent = label;
+}
+
+function cmdLabel(text) {
+  const m = text.match(/^\[(TEST|TALK|REVIEW|LESSON)(?: ([A-B][12]-\d\d))?\]$/);
+  if (!m) return null;
+  if (m[1] === 'LESSON') return `— Bài ${m[2]}: ${unitById(m[2])?.t || ''} —`;
+  return { TEST: '— Bắt đầu đo trình độ —', TALK: '— Quay lại nói chuyện —', REVIEW: '— Ôn điểm yếu —' }[m[1]];
+}
+
 function render(m) {
-  const div = document.createElement('div');
-  if (m.role === 'user') {
-    div.className = 'msg me'; div.textContent = m.text;
-  } else {
-    div.className = 'msg ai';
+  const label = m.role === 'user' && cmdLabel(m.text);
+  const div = el('div', label ? 'cmd' : m.role === 'user' ? 'msg me' : 'msg ai');
+  if (label || m.role === 'user') div.textContent = label || m.text;
+  else {
     for (const line of m.text.split('\n')) {
-      const span = document.createElement('span');
-      if (/^(✏️|💡)/.test(line.trim())) span.className = 'fix';
-      span.textContent = line + (span.className ? '' : '\n');
+      const t = line.trim();
+      const span = el('span', t.startsWith('🗣') ? 'say' : /^(✏️|💡)/.test(t) ? 'fix' : '', line);
+      if (span.className !== 'fix') span.textContent += '\n';
       div.append(span);
     }
     const say = spoken(m.text);
     if (say) {
-      const b = document.createElement('button');
-      b.className = 'play'; b.textContent = '🔊'; b.setAttribute('aria-label', 'Nghe lại');
+      const b = el('button', 'play', '🔊'); b.setAttribute('aria-label', 'Nghe lại');
       b.onclick = () => speak(say);
       div.append(b);
     }
@@ -161,6 +291,59 @@ function render(m) {
   $('#chat').append(div);
   $('#chat').scrollTop = $('#chat').scrollHeight;
   return div;
+}
+
+function renderRoad() {
+  const road = $('#road'); road.innerHTML = '';
+  const done = UNITS.filter(u => scores[u.id]);
+  const avg = done.length ? (done.reduce((s, u) => s + scores[u.id].score, 0) / done.length).toFixed(1) : '–';
+  const nxt = nextUnit();
+
+  const sum = el('div', 'card');
+  sum.append(el('h2', '', 'Tổng quan'));
+  const st = el('div', 'stats');
+  for (const [v, k] of [[profile.level || '?', 'Trình độ'], [`${done.length}/${UNITS.length}`, 'Bài đã học'], [avg, 'Điểm TB /10']]) {
+    const d = el('div'); d.append(el('b', '', v), el('span', '', k)); st.append(d);
+  }
+  sum.append(st);
+  if (profile.note) sum.append(el('p', 'hint', profile.note));
+  if (profile.weak.length) {
+    sum.append(el('p', 'hint', 'Hay mắc:'));
+    const ch = el('div', 'chips'); profile.weak.forEach(w => ch.append(el('span', '', w))); sum.append(ch);
+  }
+  if (tests.length) sum.append(el('p', 'hint', 'Tiến trình: ' + tests.map(t => `${t.date} ${t.level}`).join(' → ')));
+  const acts = el('div', 'acts');
+  for (const [icon, label, fn] of [['📝', 'Đo trình độ', () => start('[TEST]')], ['📚', 'Bài tiếp theo', () => startLesson(nxt.id)], ['🔁', 'Ôn điểm yếu', () => start('[REVIEW]')]]) {
+    const b = el('button'); b.append(el('i', '', icon), label); b.onclick = fn; acts.append(b);
+  }
+  sum.append(acts);
+  sum.append(el('p', 'hint', 'Ngày thường cứ nói chuyện với Sam là đủ. Muốn học bài bản: 📝 đo trình độ một lần, rồi mỗi ngày học 📚 một phần bài (một bài thường 2–3 buổi). Học xong một level thì đo lại.'));
+  road.append(sum);
+
+  for (const lv of LEVELS) {
+    const us = UNITS.filter(u => u.lv === lv);
+    const n = us.filter(u => scores[u.id]).length;
+    const c = el('div', 'card');
+    c.append(el('h2', '', `${lv} · ${n}/${us.length} bài`), el('div', 'hint', LEVEL_GOAL[lv]));
+    const bar = el('div', 'bar'); const fill = el('i'); fill.style.width = (n / us.length * 100) + '%'; bar.append(fill); c.append(bar);
+    for (const u of us) {
+      const row = el('div', 'unit' + (u === nxt ? ' next' : ''));
+      const t = el('div', 't'); t.append(el('b', '', `${u.id.slice(3)}. ${u.t}`), el('small', '', `Ngữ pháp: ${u.g} · Phát âm: ${u.p}`));
+      row.append(t);
+      if (scores[u.id]) row.append(el('span', 's', `${scores[u.id].score}/10`));
+      const b = el('button', '', scores[u.id] ? 'Học lại' : u === nxt ? 'Học' : 'Mở');
+      b.onclick = () => startLesson(u.id);
+      row.append(b);
+      c.append(row);
+    }
+    road.append(c);
+  }
+}
+
+function show(view) {
+  document.querySelectorAll('.view').forEach(v => v.hidden = v.id !== view);
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.view === view));
+  if (view === 'vRoad') renderRoad();
 }
 
 function speak(t) {
@@ -180,14 +363,14 @@ async function askAI(onWait) {
     contents: hist.slice(-MAX_HIST).map(m => ({ role: m.role, parts: [{ text: m.text }] })),
   });
   let r, data;
-  // Gói free hay bị 503 "quá tải" chốc lát: tự gọi lại tối đa 4 lần, chờ 2-4-8s.
+  // Gói free hay bị 503 "quá tải" hoặc rớt mạng chốc lát: tự gọi lại tối đa 4 lần, chờ 2-4-8s.
   for (let i = 0; i < 5; i++) {
     try {
       r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body,
       });
       data = await r.json();
-    } catch { r = { status: 0, ok: false }; data = {}; } // rớt mạng giữa chừng: thử lại như quá tải
+    } catch { r = { status: 0, ok: false }; data = {}; }
     if (![0, 500, 503].includes(r.status)) break;
     onWait(`… Sam đang bận chút, thử lại ${i + 1}/4`);
     if (i < 4) await new Promise(ok => setTimeout(ok, 2000 * 2 ** Math.min(i, 2)));
@@ -205,6 +388,8 @@ async function send(text) {
   text = text.trim();
   if (!text || busy) return;
   if (!key) { $('#set').showModal(); return; }
+  const cmd = text.match(/^\[(TEST|TALK|REVIEW|LESSON)/);
+  if (cmd) setMode(cmd[1] === 'TALK' ? '' : cmd[1]);
   busy = true;
   hist.push({ role: 'user', text });
   render(hist.at(-1));
@@ -223,6 +408,9 @@ async function send(text) {
   } finally { busy = false; }
 }
 
+function start(cmd) { show('vChat'); send(cmd); }
+function startLesson(id) { unit = id; store('gs_unit', unit); start(`[LESSON ${id}]`); }
+
 // Nhận giọng nói (Chrome Android / Edge). Trình duyệt không hỗ trợ thì ẩn nút.
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 if (SR) {
@@ -240,36 +428,27 @@ if (SR) {
 
 $('#send').onclick = () => { send($('#text').value); $('#text').value = ''; };
 $('#text').onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#send').click(); } };
+$('#stop').onclick = () => send('[TALK]');
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => show(b.dataset.view));
+$('#level').onclick = () => show('vRoad');
 
-$('#level').onclick = () => {
-  $('#pLevel').textContent = profile.level || 'Chưa rõ';
-  $('#pNote').textContent = profile.note || 'Nói chuyện với Sam vài câu, Sam sẽ tự đánh giá trình độ của bạn.';
-  const w = $('#pWeak'); w.innerHTML = '';
-  if (profile.weak.length) {
-    w.className = 'chips';
-    w.append(Object.assign(document.createElement('p'), { className: 'hint', textContent: 'Hay mắc:' }));
-    profile.weak.forEach(x => w.append(Object.assign(document.createElement('span'), { textContent: x })));
-  }
-  $('#pHist').textContent = tests.length ? 'Tiến trình: ' + tests.map(t => `${t.date} ${t.level}`).join(' → ') : '';
-  $('#prog').showModal();
-};
 $('#openSet').onclick = () => { $('#key').value = key; $('#model').value = model; $('#set').showModal(); };
 $('#save').onclick = () => {
   key = $('#key').value.trim(); model = $('#model').value.trim() || DEFAULT_MODEL;
   store('gs_key', key); store('gs_model', model); $('#set').close();
 };
 $('#reset').onclick = () => {
-  if (!confirm('Xoá toàn bộ trò chuyện và trình độ đã ghi?')) return;
-  profile = { level: '', weak: [], note: '' }; hist = []; tests = [];
-  for (const k of ['gs_profile', 'gs_hist', 'gs_tests', 'gs_scores', 'gs_unit', 'gs_mode']) try { localStorage.removeItem(k); } catch {}
-  $('#chat').innerHTML = ''; showLevel(); greet(); $('#set').close();
+  if (!confirm('Xoá toàn bộ trò chuyện, trình độ và điểm?')) return;
+  profile = { level: '', weak: [], note: '' }; hist = []; scores = {}; tests = []; unit = '';
+  for (const k of ['gs_profile', 'gs_hist', 'gs_scores', 'gs_tests', 'gs_unit', 'gs_mode']) try { localStorage.removeItem(k); } catch {}
+  $('#chat').innerHTML = ''; setMode(''); showLevel(); greet(); $('#set').close();
 };
 
-function greet() { render({ role: 'model', text: "Hey! I'm Sam. Nice to meet you!\nHow's your day going so far?\n💡 Cứ nói thoải mái, bí chữ thì nói tiếng Việt, mình chỉ cách nói bằng tiếng Anh." }); }
+function greet() { render({ role: 'model', text: "Hey! I'm Sam. Nice to meet you!\nHow's your day going so far?\n💡 Cứ nói thoải mái, bí chữ thì nói tiếng Việt, mình chỉ cách nói bằng tiếng Anh. Muốn học bài bản thì xem tab 📊." }); }
 
 showLevel();
-hist.forEach(render);
-if (!hist.length) greet();
+setMode(mode);
+if (hist.length) hist.forEach(render); else greet();
 if (!key) $('#set').showModal();
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
