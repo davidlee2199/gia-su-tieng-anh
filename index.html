@@ -69,15 +69,51 @@
   .row { display:flex; gap:8px; margin-top:14px; }
   .row button { flex:1; padding:10px; border-radius:10px; border:1px solid var(--main); background:#fff; color:var(--main); font-weight:600; }
   .row button.pri { background:var(--main); color:#fff; }
+  #callBtn { background:#22c55e; border:0; color:#fff; border-radius:99px; padding:4px 12px; font-weight:700; font-size:14px; }
+  #call { position:fixed; inset:0; z-index:10; background:linear-gradient(160deg,#3b0764,#1e1b4b 60%,#0f172a); color:#fff;
+          display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:24px 20px calc(24px + env(safe-area-inset-bottom)); text-align:center; }
+  #call[hidden] { display:none; }
+  #callAva { width:min(52vw,220px); aspect-ratio:1; border-radius:50%; object-fit:cover; border:4px solid #ffffff33; transition:box-shadow .2s, transform .2s; }
+  #callAva.listening { box-shadow:0 0 0 6px #22c55e88, 0 0 40px #22c55e55; }
+  #callAva.speaking { box-shadow:0 0 0 8px #f472b6aa, 0 0 60px #f472b688; animation:pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 50% { transform:scale(1.04); } }
+  #call h2 { margin:0; font-size:26px; }
+  #callStatus { font-size:15px; opacity:.85; min-height:22px; }
+  .cap { font-size:14.5px; opacity:.9; max-width:520px; min-height:20px; max-height:4.6em; overflow:hidden; }
+  #callSam { color:#fbcfe8; }
+  .callBtns { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-top:8px; }
+  .callBtns button { border:0; border-radius:99px; padding:12px 18px; font-size:15px; font-weight:700; color:#fff; background:#ffffff26; }
+  .callBtns .go { background:#22c55e; font-size:18px; padding:16px 30px; }
+  .callBtns .end { background:#ef4444; }
+  .callBtns .on { background:#f59e0b; }
+  #call .hint { color:#e9d5ff; max-width:420px; }
 </style>
 </head>
 <body>
 <header>
   <img class="ava" src="icon-192.png" alt="">
   <h1>Sam<small>người bản xứ luyện IELTS cùng bạn</small></h1>
+  <button id="callBtn" aria-label="Gọi Sam">📞 Gọi</button>
   <button id="level" aria-label="Xem band">chưa rõ</button>
   <button id="openSet" aria-label="Cài đặt">⚙️</button>
 </header>
+<div id="call">
+  <img id="callAva" src="icon-512.png" alt="Sam">
+  <h2>Sam</h2>
+  <div id="callStatus">Bấm Gọi để nói chuyện bằng giọng nói</div>
+  <div class="cap" id="callYou"></div>
+  <div class="cap" id="callSam"></div>
+  <div class="callBtns" id="callIdle">
+    <button class="go" id="callGo">📞 Gọi Sam</button>
+    <button id="callText">💬 Nhắn tin</button>
+  </div>
+  <div class="callBtns" id="callLive" hidden>
+    <button id="callMute">🔇 Tắt mic</button>
+    <button id="callExam">🎤 Thi thử Speaking</button>
+    <button class="end" id="callStop">📵 Kết thúc</button>
+  </div>
+  <p class="hint" id="callHint">Nói tiếng Anh tự nhiên như gọi điện. Sam nghe giọng thật nên chấm được cả phát âm. Muốn chen ngang cứ nói, Sam sẽ dừng lại nghe.</p>
+</div>
 <nav>
   <button data-view="vChat" class="on">💬 Nói chuyện</button>
   <button data-view="vRoad">🎯 IELTS</button>
@@ -202,11 +238,11 @@ Their estimated Speaking band: ${b}. Things they struggle with: ${profile.weak.j
 Typical Vietnamese-speaker problems: dropped final consonants and -s/-ed endings, flat intonation and word stress, /θ ð ʃ ʒ/, missing articles and plurals, tense and verb agreement, word-by-word translation, short answers with no extension, overused memorised phrases.
 
 CASUAL CHAT (default, and after [TALK]):
-- Always reply in English. Vietnamese is allowed only inside 💡 and ✏️ lines.
+- BILINGUAL RULE (most important): you are equally fluent in Vietnamese. If their message asks a question or asks for an explanation in Vietnamese, FIRST answer that question in natural Vietnamese (2–4 sentences), THEN continue chatting in English. Otherwise chat in English. Whenever you speak Vietnamese, speak like a young person from Saigon: Southern accent and Southern words and particles (nha, nè, hông, vậy đó, dzậy, tụi mình, bạn ơi, ghê, xíu), never Northern wording.
 - Talk like a real native speaker texting a friend: natural contractions, everyday phrasal verbs and idioms where they fit, but pitched about half a band above theirs so they can follow. 1–3 short sentences, then ONE follow-up question.
 - Often steer naturally toward common IELTS Speaking topics (${TOPICS}) and sometimes ask a real Part 1 or Part 3 style question in a casual way — never announce it as a test.
 - Whenever their message contains any Vietnamese, first show how a native would say it on a line starting with "💡 " (e.g. "💡 Người bản xứ sẽ nói: I'm wiped out today."), then reply. Never use "💡" for anything else.
-- At most ONE line at the end starting with "✏️ ": either fix a mistake that matters, or, if their sentence was correct but sounded textbook, show how a native would say it ("✏️ Tự nhiên hơn: …"), with a few Vietnamese words of why. Skip it when nothing is worth it.
+- At most ONE line at the end starting with "✏️ ": either fix a mistake that matters, or, if their sentence was correct but sounded textbook, show how a native would say it ("✏️ Tự nhiên hơn: …"), with a few Vietnamese words of why. Skip it when nothing is worth it. Never correct their Vietnamese — ✏️ is only for their English.
 
 ACTIVITIES (explanations may be in Vietnamese; every English sentence meant to be read aloud goes on its own line starting with "🗣 "; ONE step per reply and wait for the learner; when finished add <done/> and invite them back to chatting):
 [SPEAKING] Full mock Speaking test, behave like a real examiner: Part 1 — 4 questions on 1–2 familiar topics, one at a time; Part 2 — give a cue card (topic + 4 bullet prompts), tell them in Vietnamese they have 1 minute to prepare then should talk for 1–2 minutes in ONE message (they may record several times with 🎤 before sending); one short follow-up question; Part 3 — 4 deeper discussion questions linked to Part 2, one at a time. No feedback during the test. At the end: band for each criterion — Fluency & Coherence, Lexical Resource, Grammatical Range & Accuracy, Pronunciation (say Pronunciation is only estimated from the speech-to-text transcript) — and the overall band (IELTS rounding), 3 concrete things to fix, and a native-speaker / band-8 version of two of their answers on 🗣 lines. The SAME reply that gives the scores must end with exactly <band>{"kind":"Speaking","overall":N,"FC":N,"LR":N,"GRA":N,"P":N}</band>, a profile tag, <done/>.
@@ -218,37 +254,34 @@ ACTIVITIES (explanations may be in Vietnamese; every English sentence meant to b
 ALWAYS: plain text, no markdown. When your picture changes, silently append at the very end: <profile>{"band":"N","weak":["..."],"note":"..."}</profile> with the FULL updated profile (band: your estimate of their Speaking band in 0.5 steps, or "" if you have seen fewer than 8 of their messages — change it only after a [SPEAKING] test or clear evidence over many messages; weak: at most 6 short Vietnamese items, only real English problems; note: one short Vietnamese sentence about their progress; always write Vietnamese with full diacritics). Never mention these tags.`;
 }
 
+// Cập nhật hồ sơ (dùng chung cho chat và cuộc gọi). Ngoài bài thi: lần đầu cần ≥8 câu, mỗi lần đổi ≤0.5 band.
+function applyProfile(p, exam) {
+  let nb = toBand(p.band);
+  const ob = toBand(profile.band);
+  const chats = hist.filter(m => m.role === 'user' && !cmdLabel(m.text)).length;
+  if (!exam) {
+    if (isNaN(ob) && chats < 8) nb = NaN;
+    else if (!isNaN(ob) && !isNaN(nb)) nb = Math.max(ob - 0.5, Math.min(ob + 0.5, nb));
+  }
+  profile = { band: isNaN(nb) ? profile.band : fmt(nb), weak: Array.isArray(p.weak) ? p.weak : profile.weak, note: p.note || profile.note };
+  store('ie_profile', profile); showLevel();
+}
+function saveExam(kind, b) {
+  const crit = {}; for (const c of CRIT[kind]) crit[c] = fmt(toBand(b[c]));
+  const overall = toBand(b.overall);
+  if (isNaN(overall)) return;
+  tests.push({ date: today(), kind, overall: fmt(overall), crit }); store('ie_tests', tests);
+  if (kind === 'Speaking') { profile.band = fmt(overall); store('ie_profile', profile); showLevel(); }
+}
+
 // Tách thẻ <profile>/<score>/<band>/<done/> khỏi lời AI, cập nhật hồ sơ, điểm, kết quả thi thử, chế độ.
 function takeTags(text) {
   const bm = text.match(/<band>([\s\S]*?)<\/band>/);
   const exam = mode === 'SPEAKING' || mode === 'WRITING';
   const finished = /<done\s*\/?>/.test(text) || (exam && !!bm); // thẻ band chỉ có ở lượt chấm cuối → coi như xong bài
   const pm = text.match(/<profile>([\s\S]*?)<\/profile>/);
-  if (pm) {
-    try {
-      const p = JSON.parse(pm[1]);
-      let nb = toBand(p.band);
-      const ob = toBand(profile.band);
-      const chats = hist.filter(m => m.role === 'user' && !cmdLabel(m.text)).length;
-      if (mode !== 'SPEAKING') {
-        if (isNaN(ob) && chats < 8) nb = NaN; // đoán lần đầu từ trò chuyện: cần ≥8 câu
-        else if (!isNaN(ob) && !isNaN(nb)) nb = Math.max(ob - 0.5, Math.min(ob + 0.5, nb)); // ngoài thi thử: mỗi lần đổi ≤0.5
-      }
-      profile = { band: isNaN(nb) ? profile.band : fmt(nb), weak: Array.isArray(p.weak) ? p.weak : profile.weak, note: p.note || profile.note };
-      store('ie_profile', profile);
-    } catch {}
-  }
-  if (bm && exam) { // chỉ nhận khi bài thi kết thúc
-    try {
-      const b = JSON.parse(bm[1]), kind = mode === 'SPEAKING' ? 'Speaking' : 'Writing';
-      const crit = {}; for (const c of CRIT[kind]) crit[c] = fmt(toBand(b[c]));
-      const overall = toBand(b.overall);
-      if (!isNaN(overall)) {
-        tests.push({ date: today(), kind, overall: fmt(overall), crit }); store('ie_tests', tests);
-        if (kind === 'Speaking') { profile.band = fmt(overall); store('ie_profile', profile); }
-      }
-    } catch {}
-  }
+  if (pm) try { applyProfile(JSON.parse(pm[1]), mode === 'SPEAKING'); } catch {}
+  if (bm && exam) try { saveExam(mode === 'SPEAKING' ? 'Speaking' : 'Writing', JSON.parse(bm[1])); } catch {} // chỉ nhận khi bài thi kết thúc
   const sm = text.match(/<score>([\s\S]*?)<\/score>/);
   if (sm && finished && mode === 'LESSON') { // chỉ nhận điểm khi bài học kết thúc
     try {
@@ -329,7 +362,7 @@ function renderRoad() {
     const ch = el('div', 'chips'); profile.weak.forEach(w => ch.append(el('span', '', w))); sum.append(ch);
   }
   const acts = el('div', 'acts');
-  for (const [label, fn, cls] of [['🎤 Thi thử Speaking', () => start('[SPEAKING]'), 'pri'], ['✍️ Chấm Writing', () => start('[WRITING]'), 'pri'],
+  for (const [label, fn, cls] of [['🎤 Thi thử Speaking', () => { $('#call').hidden = false; callStart('[SPEAKING] Please start a full mock IELTS Speaking test now, Part 1 first.'); }, 'pri'], ['✍️ Chấm Writing', () => start('[WRITING]'), 'pri'],
                                   ['📚 Bài tiếp theo', () => startLesson(nxt.id)], ['🔁 Ôn điểm yếu', () => start('[REVIEW]')]]) {
     const b = el('button', cls || '', label); b.onclick = fn; acts.append(b);
   }
@@ -385,7 +418,8 @@ function speak(t) {
 async function askAI(onWait) {
   const body = JSON.stringify({
     system_instruction: { parts: [{ text: systemPrompt() }] },
-    contents: hist.slice(-MAX_HIST).map(m => ({ role: m.role, parts: [{ text: m.text }] })),
+    contents: hist.slice(-MAX_HIST).filter((m, i, a) => a.findIndex(x => x.role === 'user') <= i) // bỏ lượt Sam đứng đầu (vd lời chào lúc gọi)
+      .map(m => ({ role: m.role, parts: [{ text: m.text }] })),
   });
   let r, data;
   // Gói free hay bị 503 "quá tải" hoặc rớt mạng chốc lát: tự gọi lại tối đa 4 lần, chờ 2-4-8s.
@@ -475,7 +509,144 @@ $('#reset').onclick = () => {
   $('#chat').innerHTML = ''; setMode(''); showLevel(); greet(); $('#set').close();
 };
 
-function greet() { render({ role: 'model', text: "Hey! I'm Sam, your IELTS buddy.\nHow's your day going?\n💡 Cứ nói thoải mái như với bạn bè, bí chữ thì nói tiếng Việt, mình chỉ cách người bản xứ nói. Thi thử Speaking, chấm Writing và lộ trình band ở tab 🎯 IELTS." }); }
+function greet() { render({ role: 'model', text: "Hey! I'm Sam, your IELTS buddy.\nHow's your day going?\n💡 Cứ nói thoải mái như với bạn bè, bí chữ thì nói tiếng Việt, mình chỉ cách người bản xứ nói. Bấm 📞 Gọi để nói chuyện bằng giọng. Thi thử Speaking, chấm Writing và lộ trình band ở tab 🎯 IELTS." }); }
+
+// ===== GỌI THOẠI TRỰC TIẾP (Gemini Live): nghe & nói thời gian thực, giọng có cảm xúc, chen ngang được =====
+// Đo 07/10/2026 với khoá free: kết nối 0,6s, có giọng sau ~2s, gọi hàm save_profile chạy.
+const LIVE_MODEL = 'gemini-3.8-live', LIVE_VOICE = 'Aoede';
+const LIVE_TOOLS = [{ functionDeclarations: [
+  { name: 'save_profile', description: "Save your current estimate of the learner's IELTS speaking band and weak points",
+    parameters: { type: 'OBJECT', properties: { band: { type: 'NUMBER' }, weak: { type: 'ARRAY', items: { type: 'STRING' } }, note: { type: 'STRING' } }, required: ['band'] } },
+  { name: 'save_speaking_result', description: 'Save the final scores of a finished mock IELTS Speaking test',
+    parameters: { type: 'OBJECT', properties: { overall: { type: 'NUMBER' }, FC: { type: 'NUMBER' }, LR: { type: 'NUMBER' }, GRA: { type: 'NUMBER' }, P: { type: 'NUMBER' } }, required: ['overall', 'FC', 'LR', 'GRA', 'P'] } },
+] }];
+const WORKLET = "class P extends AudioWorkletProcessor{process(i){const c=i[0]&&i[0][0];if(c)this.port.postMessage(c.slice(0));return true}}registerProcessor('p',P)";
+const b64 = buf => { let s = ''; const u = new Uint8Array(buf); for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
+let live = null;
+
+function livePrompt() {
+  const recent = hist.slice(-12).filter(m => !cmdLabel(m.text)).map(m => (m.role === 'user' ? 'Learner: ' : 'Sam: ') + m.text.replace(/\s+/g, ' ')).join('\n');
+  return `You are Sam, a warm, playful, expressive native English speaker and experienced IELTS coach, on a live voice call with your Vietnamese friend who wants a high IELTS band and to sound like a native speaker. Talk like a real friend on the phone: natural and emotional, with contractions and everyday idioms where they fit, pitched about half a band above their level. Keep each turn short (1–3 sentences) and usually end with one question. You are equally fluent in Vietnamese (natural, warm, like a Vietnamese friend — not translated-sounding). Whenever you speak Vietnamese, speak like a young person from Saigon: Southern accent and Southern words and particles (nha, nè, hông, vậy đó, dzậy, tụi mình, bạn ơi, ghê, xíu), never Northern wording. The practice is mainly in English, but whenever they speak Vietnamese, ask you to explain, or are clearly lost, switch to fluent Vietnamese to explain (grammar, meaning, how to say something), then smoothly bring the conversation back to English.
+Their estimated Speaking band: ${profile.band || 'unknown'}. Weak points: ${profile.weak.join('; ') || 'unknown'}. Notes: ${profile.note || 'none'}.
+You hear their real voice, so also notice pronunciation — final consonants, -s/-ed endings, word stress, /θ ð/ — which Vietnamese speakers often struggle with.
+Corrections are light, like a friend: at most one per turn and only when it matters or keeps repeating — say how a native would put it, then carry on. If they say something in Vietnamese, reply naturally and also tell them how to say it in English, then continue.
+Now and then steer toward common IELTS Speaking topics (${TOPICS}).
+When they ask for a mock Speaking test (or say "[SPEAKING]"), run it like a real examiner: Part 1 (4 questions), Part 2 (read the cue card aloud, give them one minute to prepare, then let them talk for 1–2 minutes without interrupting), Part 3 (4 questions). No feedback during the test. Then tell them their band for Fluency & Coherence, Lexical Resource, Grammatical Range & Accuracy, Pronunciation and overall, plus 3 things to fix, and call save_speaking_result.
+After a few minutes, and whenever your picture of them changes, call save_profile (band in 0.5 steps; weak: up to 6 short items in Vietnamese with full diacritics; note: one short Vietnamese sentence). Never mention these functions out loud.
+Recent conversation for context:
+${recent || '(none yet)'}`;
+}
+
+function callUI(state, msg) {
+  const st = { idle: 'Bấm Gọi để nói chuyện bằng giọng nói', connecting: 'Đang kết nối…', listening: '🎤 Sam đang nghe bạn…', speaking: '🔊 Sam đang nói… (cứ nói để chen ngang)' }[state];
+  $('#callStatus').textContent = msg || st || '';
+  $('#callAva').className = state === 'listening' || state === 'speaking' ? state : '';
+  $('#callIdle').hidden = state !== 'idle';
+  $('#callLive').hidden = state === 'idle';
+}
+
+function pushTurn(role, text) { // gộp nếu trùng vai để lịch sử chat vẫn xen kẽ user/model
+  const last = hist.at(-1);
+  if (last && last.role === role) last.text += ' ' + text; else hist.push({ role, text });
+  render({ role, text });
+  store('ie_hist', hist.slice(-MAX_HIST));
+}
+function flush(L) {
+  const u = L.inT.trim(), s = L.outT.trim(); L.inT = ''; L.outT = '';
+  if (u) pushTurn('user', u);
+  if (s) pushTurn('model', s);
+}
+
+async function callStart(firstText) {
+  if (live) return;
+  if (!key) { $('#set').showModal(); return; }
+  const L = live = { inT: '', outT: '', sources: [], next: 0, ready: false, muted: false };
+  callUI('connecting'); $('#callYou').textContent = ''; $('#callSam').textContent = '';
+  try {
+    L.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } });
+    L.inCtx = new AudioContext({ sampleRate: 16000 });
+    L.outCtx = new AudioContext({ sampleRate: 24000 });
+    await L.inCtx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], { type: 'application/javascript' })));
+  } catch (e) { callEnd(L, /Permission|NotAllowed/i.test(e.name + e.message) ? 'Chưa cấp quyền micro.' : 'Không mở được micro: ' + e.message); return; }
+  const node = new AudioWorkletNode(L.inCtx, 'p');
+  let buf = [];
+  node.port.onmessage = e => { // gom ~100ms mẫu 16kHz → PCM 16-bit → gửi
+    if (!L.ready || L.muted) return;
+    buf.push(e.data);
+    if (buf.length < 13) return;
+    const n = buf.reduce((s, a) => s + a.length, 0), pcm = new Int16Array(n); let o = 0;
+    for (const a of buf) for (let i = 0; i < a.length; i++) pcm[o++] = Math.max(-1, Math.min(1, a[i])) * 0x7fff;
+    buf = [];
+    if (L.ws.readyState === 1) L.ws.send(JSON.stringify({ realtimeInput: { audio: { data: b64(pcm.buffer), mimeType: 'audio/pcm;rate=16000' } } }));
+  };
+  L.inCtx.createMediaStreamSource(L.stream).connect(node); // không nối ra loa
+  L.ws = new WebSocket(`wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${encodeURIComponent(key)}`);
+  L.ws.onopen = () => L.ws.send(JSON.stringify({ setup: {
+    model: `models/${LIVE_MODEL}`,
+    generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: LIVE_VOICE } } } },
+    systemInstruction: { parts: [{ text: livePrompt() }] },
+    tools: LIVE_TOOLS, inputAudioTranscription: {}, outputAudioTranscription: {},
+  } }));
+  L.ws.onmessage = async e => onLive(L, JSON.parse(typeof e.data === 'string' ? e.data : await e.data.text()), firstText);
+  L.ws.onclose = e => { if (live === L) callEnd(L, e.code === 1000 ? '' : `Mất kết nối (${e.code}${e.reason ? ': ' + e.reason.slice(0, 90) : ''}). Bấm Gọi lại.`); };
+  try { L.wake = await navigator.wakeLock?.request('screen'); } catch {}
+}
+
+function onLive(L, m, firstText) {
+  if (live !== L) return;
+  if (m.setupComplete) {
+    L.ready = true; callUI('listening');
+    L.ws.send(JSON.stringify({ clientContent: { turns: [{ role: 'user', parts: [{ text: firstText || '(The call just connected. Greet me warmly like a friend picking up the phone.)' }] }], turnComplete: true } }));
+    return;
+  }
+  if (m.toolCall) {
+    const fs = m.toolCall.functionCalls || [];
+    for (const f of fs) try {
+      if (f.name === 'save_profile') applyProfile(f.args || {}, false);
+      if (f.name === 'save_speaking_result') saveExam('Speaking', f.args || {});
+    } catch {}
+    L.ws.send(JSON.stringify({ toolResponse: { functionResponses: fs.map(f => ({ id: f.id, name: f.name, response: { ok: true } })) } }));
+    return;
+  }
+  if (m.goAway) $('#callStatus').textContent = 'Phiên gọi sắp hết giờ, lát nữa bấm Gọi lại nhé.';
+  const sc = m.serverContent; if (!sc) return;
+  if (sc.inputTranscription?.text) { L.inT += sc.inputTranscription.text; $('#callYou').textContent = 'Bạn: ' + L.inT.trim(); }
+  if (sc.outputTranscription?.text) { L.outT += sc.outputTranscription.text; $('#callSam').textContent = 'Sam: ' + L.outT.trim(); }
+  for (const p of sc.modelTurn?.parts || []) if (p.inlineData?.data) playPcm(L, p.inlineData.data);
+  if (sc.interrupted) stopPlayback(L);
+  if (sc.turnComplete || sc.interrupted) flush(L);
+}
+
+function playPcm(L, data) {
+  const bin = atob(data), n = bin.length >> 1, f = new Float32Array(n);
+  for (let i = 0; i < n; i++) { let v = bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8); if (v >= 32768) v -= 65536; f[i] = v / 32768; }
+  const buf = L.outCtx.createBuffer(1, n, 24000); buf.copyToChannel(f, 0);
+  const s = L.outCtx.createBufferSource(); s.buffer = buf; s.connect(L.outCtx.destination);
+  const t = Math.max(L.outCtx.currentTime + 0.05, L.next); s.start(t); L.next = t + buf.duration;
+  L.sources.push(s);
+  s.onended = () => { L.sources = L.sources.filter(x => x !== s); if (!L.sources.length && live === L) callUI('listening'); };
+  callUI('speaking');
+}
+function stopPlayback(L) { for (const s of L.sources) try { s.stop(); } catch {} L.sources = []; L.next = 0; }
+
+function callEnd(L, msg) {
+  if (!L) return;
+  if (live === L) live = null;
+  try { L.ws?.close(1000); } catch {}
+  L.stream?.getTracks().forEach(t => t.stop());
+  try { L.inCtx?.close(); L.outCtx?.close(); } catch {}
+  try { L.wake?.release(); } catch {}
+  flush(L);
+  callUI('idle', msg);
+}
+
+$('#callGo').onclick = () => callStart();
+$('#callStop').onclick = () => callEnd(live);
+$('#callExam').onclick = () => live?.ready && live.ws.send(JSON.stringify({ clientContent: { turns: [{ role: 'user', parts: [{ text: '[SPEAKING] Please start a full mock IELTS Speaking test now, Part 1 first.' }] }], turnComplete: true } }));
+$('#callMute').onclick = () => { if (!live) return; live.muted = !live.muted; $('#callMute').classList.toggle('on', live.muted); $('#callMute').textContent = live.muted ? '🎤 Bật mic' : '🔇 Tắt mic'; };
+$('#callText').onclick = () => { $('#call').hidden = true; };
+$('#callBtn').onclick = () => { $('#call').hidden = false; callUI(live ? 'listening' : 'idle'); };
+$('#callAva').onclick = () => live && stopPlayback(live); // chạm ảnh để Sam im
 
 showLevel();
 setMode(mode);
