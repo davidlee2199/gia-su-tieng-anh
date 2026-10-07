@@ -716,7 +716,7 @@ window.Avatar = {
     return loading ||= (async () => {
       const node = document.getElementById('avatar');
       head = new TalkingHead(node, { lipsyncModules: [], cameraView: 'head', cameraDistance: 0.45, cameraY: 0.12, modelFPS: 30,
-        modelPixelRatio: Math.min(1, 1.5 / devicePixelRatio) // Redmi dpr 2.75: vẽ full nét 14 fps, nét 1.5 thì 60 fps, avatarMood: 'happy' });
+        modelPixelRatio: Math.min(1, 1.5 / devicePixelRatio), avatarMood: 'happy' }); // Redmi dpr 2.75: vẽ full nét 14 fps, nét 1.5 thì 60 fps
       await head.showAvatar({ url: GLB, body: 'F', avatarMood: 'happy', lipsyncLang: 'en' });
       node.classList.add('ready'); document.getElementById('call').classList.add('has3d');
       return true;
