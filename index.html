@@ -138,6 +138,8 @@
   <label for="key">Khoá Gemini API (miễn phí)</label>
   <input id="key" type="password" autocomplete="off" placeholder="Dán khoá vào đây">
   <p class="hint">Lấy khoá free tại <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a>. Khoá chỉ lưu trên máy này.</p>
+  <label for="about">Sam nên biết gì về bạn</label>
+  <textarea id="about" rows="6" style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font:inherit;font-size:14px" placeholder="Bạn làm nghề gì, thích gì, muốn Sam nói chuyện kiểu nào… (chỉ lưu trên máy này)"></textarea>
   <label for="model">Model</label>
   <input id="model">
   <div class="row">
@@ -211,6 +213,7 @@ const fmt = n => isNaN(n) ? '' : n.toFixed(1);
 // Mặc định Flash-Lite: đo 07/10/2026 trả lời 1-2s, bản Flash thường mất 20-76s vì quá tải.
 const DEFAULT_MODEL = 'gemini-flash-lite-latest';
 let key = load('gs_key', '');
+let about = load('gs_about', ''); // người dùng tự viết về mình, chỉ lưu trên máy — KHÔNG đưa thông tin cá nhân vào code (repo công khai)
 let model = load('gs_model', DEFAULT_MODEL);
 if (model === 'gemini-flash-latest') { model = DEFAULT_MODEL; store('gs_model', model); }
 let profile = load('ie_profile', { band: '', weak: [], note: '' }); // band = ước tính band Speaking
@@ -234,7 +237,9 @@ function systemPrompt() {
   const b = profile.band || 'unknown yet';
   return `You are Sam, a native English speaker and an experienced IELTS coach (you know the official band descriptors inside out), chatting with a Vietnamese adult friend who wants a high IELTS band and to sound like a native speaker. Mostly you just chat like a real native friend over text and share a bit about yourself too. When they send a bracketed command, you run that IELTS activity.
 You opened this chat with: "Hey! I'm Sam, your IELTS buddy. How's your day going?" (plus a Vietnamese note that they can use Vietnamese when stuck).
-Their estimated Speaking band: ${b}. Things they struggle with: ${profile.weak.join('; ') || 'unknown yet'}. Notes: ${profile.note || 'none'}.
+${about ? `About them, in their own words — use it to pick topics and match the style they want:
+${about}
+` : ''}Their estimated Speaking band: ${b}. Things they struggle with: ${profile.weak.join('; ') || 'unknown yet'}. Notes: ${profile.note || 'none'}.
 Typical Vietnamese-speaker problems: dropped final consonants and -s/-ed endings, flat intonation and word stress, /θ ð ʃ ʒ/, missing articles and plurals, tense and verb agreement, word-by-word translation, short answers with no extension, overused memorised phrases.
 
 CASUAL CHAT (default, and after [TALK]):
@@ -497,15 +502,16 @@ $('#stop').onclick = () => send('[TALK]');
 document.querySelectorAll('nav button').forEach(b => b.onclick = () => show(b.dataset.view));
 $('#level').onclick = () => show('vRoad');
 
-$('#openSet').onclick = () => { $('#key').value = key; $('#model').value = model; $('#set').showModal(); };
+$('#openSet').onclick = () => { $('#key').value = key; $('#model').value = model; $('#about').value = about; $('#set').showModal(); };
 $('#save').onclick = () => {
   key = $('#key').value.trim(); model = $('#model').value.trim() || DEFAULT_MODEL;
-  store('gs_key', key); store('gs_model', model); $('#set').close();
+  about = $('#about').value.trim();
+  store('gs_key', key); store('gs_model', model); store('gs_about', about); $('#set').close();
 };
 $('#reset').onclick = () => {
   if (!confirm('Xoá toàn bộ trò chuyện, band, điểm và lịch sử thi thử?')) return;
   profile = { band: '', weak: [], note: '' }; hist = []; scores = {}; tests = []; unit = '';
-  for (const k of Object.keys(localStorage)) if (/^(ie_|gs_(?!key|model))/.test(k)) try { localStorage.removeItem(k); } catch {}
+  for (const k of Object.keys(localStorage)) if (/^(ie_|gs_(?!key|model|about))/.test(k)) try { localStorage.removeItem(k); } catch {}
   $('#chat').innerHTML = ''; setMode(''); showLevel(); greet(); $('#set').close();
 };
 
@@ -527,7 +533,9 @@ let live = null;
 function livePrompt() {
   const recent = hist.slice(-12).filter(m => !cmdLabel(m.text)).map(m => (m.role === 'user' ? 'Learner: ' : 'Sam: ') + m.text.replace(/\s+/g, ' ')).join('\n');
   return `You are Sam, a warm, playful, expressive native English speaker and experienced IELTS coach, on a live voice call with your Vietnamese friend who wants a high IELTS band and to sound like a native speaker. Talk like a real friend on the phone: natural and emotional, with contractions and everyday idioms where they fit, pitched about half a band above their level. Keep each turn short (1–3 sentences) and usually end with one question. You are equally fluent in Vietnamese (natural, warm, like a Vietnamese friend — not translated-sounding). Whenever you speak Vietnamese, speak like a young person from Saigon: Southern accent and Southern words and particles (nha, nè, hông, vậy đó, dzậy, tụi mình, bạn ơi, ghê, xíu), never Northern wording. The practice is mainly in English, but whenever they speak Vietnamese, ask you to explain, or are clearly lost, switch to fluent Vietnamese to explain (grammar, meaning, how to say something), then smoothly bring the conversation back to English.
-Their estimated Speaking band: ${profile.band || 'unknown'}. Weak points: ${profile.weak.join('; ') || 'unknown'}. Notes: ${profile.note || 'none'}.
+${about ? `About them, in their own words — use it to pick topics and match the style they want:
+${about}
+` : ''}Their estimated Speaking band: ${profile.band || 'unknown'}. Weak points: ${profile.weak.join('; ') || 'unknown'}. Notes: ${profile.note || 'none'}.
 You hear their real voice, so also notice pronunciation — final consonants, -s/-ed endings, word stress, /θ ð/ — which Vietnamese speakers often struggle with.
 Corrections are light, like a friend: at most one per turn and only when it matters or keeps repeating — say how a native would put it, then carry on. If they say something in Vietnamese, reply naturally and also tell them how to say it in English, then continue.
 Now and then steer toward common IELTS Speaking topics (${TOPICS}).
