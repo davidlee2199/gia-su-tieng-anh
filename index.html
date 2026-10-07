@@ -127,7 +127,7 @@
     <button id="callExam">🎤 Thi thử Speaking</button>
     <button class="end" id="callStop">📵 Kết thúc</button>
   </div>
-  <div id="avaCredit">Nhân vật 3D: TalkingHead + HeadAudio (MIT) · avatar Avaturn (phi thương mại)</div>
+  <div id="avaCredit">Nhân vật 3D: TalkingHead + HeadAudio (MIT) · nhân vật VRoid mẫu (CC0)</div>
   <p class="hint" id="callHint">Nói tiếng Anh tự nhiên như gọi điện. Sam nghe giọng thật nên chấm được cả phát âm. Muốn chen ngang cứ nói, Sam sẽ dừng lại nghe.</p>
 </div>
 <nav>
@@ -673,7 +673,7 @@ function callEnd(L, msg) {
 }
 
 $('#callGo').onclick = () => callStart();
-setTimeout(() => window.Avatar?.init(), 300); // tải sẵn nhân vật 3D (~14 MB, lần đầu) khi mở app
+setTimeout(() => window.Avatar?.init(), 300); // tải sẵn nhân vật 3D (~9 MB, lần đầu) khi mở app
 $('#callStop').onclick = () => callEnd(live);
 $('#callExam').onclick = () => live?.ready && live.ws.send(JSON.stringify({ clientContent: { turns: [{ role: 'user', parts: [{ text: '[SPEAKING] Please start a full mock IELTS Speaking test now, Part 1 first.' }] }], turnComplete: true } }));
 $('#callMute').onclick = () => { if (!live) return; live.muted = !live.muted; $('#callMute').classList.toggle('on', live.muted); $('#callMute').textContent = live.muted ? '🎤 Bật mic' : '🔇 Tắt mic'; };
@@ -693,7 +693,7 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catc
 import { TalkingHead } from 'talkinghead';
 import { HeadAudio } from 'https://cdn.jsdelivr.net/gh/met4citizen/HeadAudio@main/dist/headaudio.min.mjs';
 const HA = 'https://cdn.jsdelivr.net/gh/met4citizen/HeadAudio@main/dist/';
-const GLB = 'https://cdn.jsdelivr.net/gh/met4citizen/TalkingHead@88e9e8c8b03f/avatars/avaturn.glb'; // Avaturn, phi thương mại — app cá nhân OK
+const GLB = 'sam.glb'; // VRoid mẫu Sendagaya Shino (CC0), chuyển bằng tools/vroid-to-talkinghead.py
 let head = null, ha = null, loading = null;
 
 // PCM 16-bit 24 kHz (Gemini) → tần số của AudioContext (thường 48 kHz), nội suy tuyến tính.
@@ -715,9 +715,10 @@ window.Avatar = {
   init() {
     return loading ||= (async () => {
       const node = document.getElementById('avatar');
-      head = new TalkingHead(node, { lipsyncModules: [], cameraView: 'head', cameraDistance: 0.45, cameraY: 0.12, modelFPS: 30,
+      head = new TalkingHead(node, { lipsyncModules: [], cameraView: 'head', cameraDistance: 1.0, cameraY: 0.7, modelFPS: 30, // đầu anime to: lùi xa + nâng mặt lên trên phụ đề
+        avatarIdleEyeContact: 0.9, avatarSpeakingEyeContact: 0.9, avatarIdleHeadMove: 0.3, avatarSpeakingHeadMove: 0.4,
         modelPixelRatio: Math.min(1, 1.5 / devicePixelRatio), avatarMood: 'happy' }); // Redmi dpr 2.75: vẽ full nét 14 fps, nét 1.5 thì 60 fps
-      await head.showAvatar({ url: GLB, body: 'F', avatarMood: 'happy', lipsyncLang: 'en' });
+      await head.showAvatar({ url: GLB, body: 'F', avatarMood: 'happy', lipsyncLang: 'en', baseline: { headRotateX: -0.1, eyeBlinkLeft: 0.05, eyeBlinkRight: 0.05 } });
       node.classList.add('ready'); document.getElementById('call').classList.add('has3d');
       return true;
     })().catch(e => { console.warn('avatar', e); loading = null; return false; });

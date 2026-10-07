@@ -1,0 +1,76 @@
+# Chuyển nhân vật VRoid (.vrm) sang GLB dùng được với TalkingHead (khẩu hình ARKit + Oculus).
+# Cần: Blender 4.2+ có add-on "VRM format"; tải cùng thư mục: talkinghead-addon.py (blender/MPFB),
+# rename-vroid-bones.py, build-vroid-eyes.py, build-vroid-shapekeys.py (blender/VRoid) từ met4citizen/TalkingHead (MIT).
+# Chạy: blender -b --python vroid-to-talkinghead.py -- <thư mục script> <file.vrm> <out.glb>
+import bpy, sys, runpy, os, importlib.util, addon_utils
+D, VRM, OUT = sys.argv[sys.argv.index('--') + 1:][:3]
+bpy.ops.wm.read_factory_settings(use_empty=True)
+for m in addon_utils.modules():
+    if m.__name__.endswith('.vrm') or m.__name__ == 'vrm':
+        addon_utils.enable(m.__name__, default_set=True); print('enabled', m.__name__)
+spec = importlib.util.spec_from_file_location('talkinghead_addon', os.path.join(D, 'talkinghead-addon.py'))
+th = importlib.util.module_from_spec(spec); spec.loader.exec_module(th); th.register()
+bpy.ops.import_scene.vrm(filepath=VRM)
+print('OBJECTS:', [(o.name, o.type) for o in bpy.data.objects][:40])
+col = bpy.data.collections.get('Colliders')
+if col:
+    def kill(c):
+        for ch in list(c.children): kill(ch)
+        for o in list(c.objects): bpy.data.objects.remove(o, do_unlink=True)
+        bpy.data.collections.remove(c)
+    kill(col); print('colliders removed')
+for o in bpy.data.objects:
+    if o.type == 'ARMATURE' and o.name != 'Armature': print('rename armature', o.name); o.name = 'Armature'
+for o in bpy.data.objects:  # VRM0: 'Face.M_F00_000_00_Fcl_MTH_A' -> 'Fcl_MTH_A' (script TalkingHead tìm tên ngắn)
+    if o.type == 'MESH' and o.data.shape_keys:
+        for k in o.data.shape_keys.key_blocks:
+            if 'Fcl_' in k.name and not k.name.startswith('Fcl_'): k.name = k.name[k.name.index('Fcl_'):]
+for s in ['rename-vroid-bones.py', 'build-vroid-eyes.py', 'build-vroid-shapekeys.py']:
+    print('RUN', s); runpy.run_path(os.path.join(D, s), run_name='__main__')
+arm = bpy.data.objects['Armature']
+bpy.ops.object.select_all(action='DESELECT'); arm.select_set(True); bpy.context.view_layer.objects.active = arm
+print('fix axes', bpy.ops.talkinghead.fix_bone_axes_t())
+def to_principled(mat):
+    nt = mat.node_tree
+    img = next((n.image for n in nt.nodes if n.type == 'TEX_IMAGE' and n.name.startswith('Mtoon1BaseColorTexture') and n.image), None)
+    ext = getattr(mat, 'vrm_addon_extension', None)
+    m1 = ext.mtoon1 if ext else None
+    fac = list(m1.pbr_metallic_roughness.base_color_factor) if m1 else [1, 1, 1, 1]
+    mode = m1.alpha_mode if m1 else 'OPAQUE'
+    cutoff = m1.alpha_cutoff if m1 else 0.5
+    # Đổi đồng phục học sinh thành đồ thường: áo đen, bỏ nơ; da ấm hơn
+    if 'Tops' in mat.name: fac = [0.09, 0.07, 0.08, 1]
+    if 'SKIN' in mat.name: fac = [1.0, 0.93, 0.87, 1]
+    hide = 'Accessory' in mat.name
+    nt.nodes.clear()
+    out = nt.nodes.new('ShaderNodeOutputMaterial'); bsdf = nt.nodes.new('ShaderNodeBsdfPrincipled')
+    bsdf.inputs['Metallic'].default_value = 0.0; bsdf.inputs['Roughness'].default_value = 0.85
+    nt.links.new(bsdf.outputs['BSDF'], out.inputs['Surface'])
+    if img:
+        tex = nt.nodes.new('ShaderNodeTexImage'); tex.image = img
+        mul = nt.nodes.new('ShaderNodeMix'); mul.data_type = 'RGBA'; mul.blend_type = 'MULTIPLY'; mul.inputs['Factor'].default_value = 1.0
+        nt.links.new(tex.outputs['Color'], mul.inputs['A']); mul.inputs['B'].default_value = fac
+        nt.links.new(mul.outputs['Result'], bsdf.inputs['Base Color'])
+        if mode == 'BLEND':
+            nt.links.new(tex.outputs['Alpha'], bsdf.inputs['Alpha']); mat.surface_render_method = 'BLENDED'
+        elif mode == 'MASK':
+            gt = nt.nodes.new('ShaderNodeMath'); gt.operation = 'GREATER_THAN'; gt.inputs[1].default_value = cutoff
+            nt.links.new(tex.outputs['Alpha'], gt.inputs[0]); nt.links.new(gt.outputs['Value'], bsdf.inputs['Alpha'])
+    else:
+        bsdf.inputs['Base Color'].default_value = fac
+    if hide:
+        for l in list(bsdf.inputs['Alpha'].links): nt.links.remove(l)
+        bsdf.inputs['Alpha'].default_value = 0.0; mat.surface_render_method = 'BLENDED'
+    return mode
+modes = {}
+for mat in list(bpy.data.materials):
+    if mat.use_nodes and mat.users: modes[mat.name] = to_principled(mat)
+print('MATERIALS', len(modes), sorted(set(modes.values())))
+bpy.ops.object.mode_set(mode='OBJECT')
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+face = bpy.data.objects.get('Face')
+keys = [k.name for k in face.data.shape_keys.key_blocks] if face and face.data.shape_keys else []
+print('FACE KEYS', len(keys), [k for k in keys if k.startswith('viseme_')][:15], 'eyeBlinkLeft' in keys, 'mouthSmileLeft' in keys)
+bpy.ops.export_scene.gltf(filepath=OUT, export_format='GLB', export_animations=False, export_morph=True, export_skins=True)
+print('EXPORTED', OUT, os.path.getsize(OUT))
