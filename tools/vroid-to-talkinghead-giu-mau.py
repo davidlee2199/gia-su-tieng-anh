@@ -1,4 +1,4 @@
-# Bản giữ nguyên màu/đồ của nhân vật tự nặn trong VRoid (chỉ bù da/tóc cho đèn PBR).
+# Bản giữ nguyên màu/đồ của nhân vật tự nặn trong VRoid (bù da/tóc cho đèn PBR, thay da mặt bằng tools/texd/face-son.png có son + lỗ mũi).
 # Chạy: blender -b --python convert.py -- <thư mục> <file.vrm> <out.glb>
 import bpy, sys, runpy, os, importlib.util, addon_utils
 D, VRM, OUT = sys.argv[sys.argv.index('--') + 1:][:3]
@@ -37,6 +37,8 @@ def to_principled(mat):
     mode = m1.alpha_mode if m1 else 'OPAQUE'
     cutoff = m1.alpha_cutoff if m1 else 0.5
     hide = False
+    if img and 'Face_00_SKIN' in mat.name and os.path.exists(os.path.join(D, 'texd', 'face-son.png')):  # môi tô son
+        img = bpy.data.images.load(os.path.join(D, 'texd', 'face-son.png'), check_existing=True); print('SON OK')
     # Bù cho đèn PBR (VRoid dùng toon + màu bóng): da ấm lên, tóc trầm lại. Hệ số là màu tuyến tính.
     if 'SKIN' in mat.name: fac = [1.0, 0.78, 0.68, 1]
     if 'HAIR' in mat.name: fac = [0.6, 0.6, 0.6, 1]
