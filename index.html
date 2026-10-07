@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1d4ed8">
-<title>Sam · bạn nói tiếng Anh</title>
+<title>Sam · luyện IELTS</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <style>
@@ -33,9 +33,10 @@
   #modebar { display:flex; align-items:center; gap:8px; background:#eef3ff; color:var(--main); padding:6px 12px; font-size:13.5px; font-weight:600; border-top:1px solid var(--line); }
   #modebar[hidden] { display:none; }
   #modebar span { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  #modebar button { border:1px solid var(--main); background:#fff; color:var(--main); border-radius:8px; padding:3px 10px; font-weight:600; }
+  #modebar button { border:1px solid var(--main); background:#fff; color:var(--main); border-radius:8px; padding:3px 10px; font-weight:600; white-space:nowrap; }
   footer { display:flex; gap:6px; padding:8px 10px calc(8px + env(safe-area-inset-bottom)); background:#fff; border-top:1px solid var(--line); }
   #text { flex:1; border:1px solid #d1d5db; border-radius:12px; padding:10px; font:inherit; resize:none; height:46px; }
+  #text:focus, #text.long { height:110px; }
   footer button { border:0; border-radius:12px; min-width:48px; font-size:20px; background:var(--main); color:#fff; }
   #mic.on { background:#dc2626; }
   #road { overflow-y:auto; padding:12px 12px 24px; }
@@ -45,9 +46,9 @@
   .stats div { flex:1; background:var(--bg); border-radius:10px; padding:8px 4px; }
   .stats b { display:block; font-size:22px; color:var(--main); }
   .stats span { font-size:12px; color:var(--mute); }
-  .acts { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:10px; }
-  .acts button { border:1px solid var(--main); background:#fff; color:var(--main); border-radius:10px; padding:6px 2px; font-size:12.5px; font-weight:600; line-height:1.25; }
-  .acts button i { display:block; font-style:normal; font-size:20px; }
+  .acts { display:grid; grid-template-columns:repeat(2,1fr); gap:6px; margin-top:10px; }
+  .acts button { border:1px solid var(--main); background:#fff; color:var(--main); border-radius:10px; padding:8px 4px; font-size:14px; font-weight:600; }
+  .acts button.pri { background:var(--main); color:#fff; }
   .chips span { display:inline-block; background:var(--fix); border-radius:99px; padding:2px 10px; margin:3px 4px 0 0; font-size:13px; }
   .bar { height:8px; background:var(--bg); border-radius:99px; overflow:hidden; margin:4px 0 8px; }
   .bar i { display:block; height:100%; background:var(--main); }
@@ -59,6 +60,7 @@
   .unit button { border:1px solid var(--main); background:#fff; color:var(--main); border-radius:8px; padding:5px 10px; font-weight:600; }
   .unit.next button { background:var(--main); color:#fff; }
   .hint { color:var(--mute); font-size:13px; }
+  .hist { font-size:13.5px; margin:4px 0; }
   dialog { border:0; border-radius:14px; width:min(420px,92vw); }
   dialog h3 { margin:0 0 8px; }
   dialog label { display:block; margin:10px 0 4px; font-weight:600; font-size:14px; }
@@ -70,18 +72,18 @@
 </head>
 <body>
 <header>
-  <h1>Sam<small>bạn nói chuyện tiếng Anh của bạn</small></h1>
-  <button id="level" aria-label="Xem trình độ">chưa rõ</button>
+  <h1>Sam<small>người bản xứ luyện IELTS cùng bạn</small></h1>
+  <button id="level" aria-label="Xem band">chưa rõ</button>
   <button id="openSet" aria-label="Cài đặt">⚙️</button>
 </header>
 <nav>
   <button data-view="vChat" class="on">💬 Nói chuyện</button>
-  <button data-view="vRoad">📊 Lộ trình & Điểm</button>
+  <button data-view="vRoad">🎯 IELTS</button>
 </nav>
 
 <section id="vChat" class="view">
   <main id="chat"></main>
-  <div id="modebar" hidden><span id="modeText"></span><button id="stop">Dừng, nói chuyện tiếp</button></div>
+  <div id="modebar" hidden><span id="modeText"></span><button id="stop">Dừng</button></div>
   <footer>
     <button id="mic" aria-label="Nói">🎤</button>
     <textarea id="text" placeholder="Nhắn cho Sam…"></textarea>
@@ -112,164 +114,174 @@ const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; 
 const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 
-// GIÁO TRÌNH: khung CEFR A1→B2, đích là giao tiếp trôi chảy. Mỗi bài: tình huống · ngữ pháp · phát âm (nhắm lỗi người Việt).
-const LEVELS = ['A1', 'A2', 'B1', 'B2'];
-const LEVEL_GOAL = {
-  A1: 'Sống sót cơ bản: giới thiệu bản thân, hỏi đáp đơn giản, mua bán, hỏi đường.',
-  A2: 'Giao tiếp hằng ngày: kể chuyện đã qua, hẹn gặp, đi du lịch, gọi điện, đi khám.',
-  B1: 'Tự tin trong công việc & đời sống: phỏng vấn, small talk, nêu ý kiến, họp, xử lý sự cố.',
-  B2: 'Trôi chảy & chuyên nghiệp: thuyết trình, đàm phán, tranh luận, nói tự nhiên.',
+// LỘ TRÌNH IELTS: 4 chặng theo band mục tiêu, nặng Speaking (nói như người bản xứ) + Writing.
+const STAGES = {
+  '5': 'Lên band 5.5: trả lời Part 1 trôi chảy, nói đủ 2 phút Part 2, viết đúng cấu trúc.',
+  '6': 'Lên band 6.5: mở rộng ý, câu phức, collocation theo chủ đề, Writing Task 1/2 đủ ý.',
+  '7': 'Lên band 7.5: nói tự nhiên như người bản xứ, từ vựng ít phổ biến, Part 3 trừu tượng.',
+  '8': 'Band 8+: chính xác gần tuyệt đối, idiom đúng chỗ, lập luận sắc, ngữ điệu biểu cảm.',
 };
 const UNITS = [
-  ['A1-01', 'Chào hỏi & giới thiệu bản thân', 'to be (am/is/are), đại từ nhân xưng', 'âm cuối /s/ trong it\'s, what\'s, that\'s'],
-  ['A1-02', 'Gia đình & bạn bè', 'have/has, sở hữu \'s, my/your/his/her', 'âm /θ/ /ð/: three, this, mother'],
-  ['A1-03', 'Công việc & nghề nghiệp', 'a/an + nghề, hiện tại đơn (I work / she works)', 'đuôi -s đọc /s/ /z/ /ɪz/'],
-  ['A1-04', 'Thói quen hằng ngày & giờ giấc', 'hiện tại đơn + always/usually/never, cách nói giờ', 'âm cuối /t/ /d/ không được nuốt'],
-  ['A1-05', 'Số đếm, giá tiền, mua sắm', 'How much/How many, this/that/these/those', 'trọng âm thirteen vs thirty'],
-  ['A1-06', 'Gọi món ăn uống', 'Can I have…?, some/any, danh từ đếm được/không đếm được', 'âm /ʃ/ /tʃ/: fish, chips, cheese'],
-  ['A1-07', 'Hỏi & chỉ đường', 'there is/are, giới từ nơi chốn, câu mệnh lệnh', 'cụm phụ âm /st/ /str/: street, straight'],
-  ['A1-08', 'Sở thích & cuối tuần', 'like/love + V-ing, can (khả năng)', 'âm cuối /ŋ/ trong -ing'],
-  ['A1-09', 'Thời tiết & quần áo', 'hiện tại tiếp diễn (I am wearing…)', 'âm cuối /l/ /r/: cold, wear'],
-  ['A1-10', 'Cuối tuần trước bạn làm gì?', 'quá khứ đơn: was/were, V-ed, động từ bất quy tắc thường gặp', 'đuôi -ed đọc /t/ /d/ /ɪd/'],
-  ['A2-01', 'Kể một câu chuyện đã xảy ra', 'quá khứ đơn + first/then/after that/finally', 'ngữ điệu khi kể chuyện'],
-  ['A2-02', 'Lên kế hoạch & hẹn gặp', 'be going to, hiện tại tiếp diễn chỉ lịch hẹn', 'trọng âm từ 2 âm tiết: meeting, tomorrow'],
-  ['A2-03', 'Du lịch: sân bay & khách sạn', 'câu hỏi lịch sự Could you…? / Would you…?', 'ngữ điệu câu hỏi Yes/No (lên) vs Wh- (xuống)'],
-  ['A2-04', 'So sánh: sản phẩm, thành phố', 'so sánh hơn & so sánh nhất', 'âm yếu /ə/: than, a, to'],
-  ['A2-05', 'Sức khoẻ & đi khám bệnh', 'should/shouldn\'t, have to', 'nguyên âm đôi /eɪ/ /aɪ/: pain, ache, eye'],
-  ['A2-06', 'Gọi điện & để lại lời nhắn', 'will (quyết định tức thì), đánh vần tên, đọc số điện thoại', 'bảng chữ cái: A E I G J'],
-  ['A2-07', 'Nhà cửa & thuê nhà', 'much/many/a lot of, there is/are + some/any', 'nối âm: an apple, there are'],
-  ['A2-08', 'Bạn đã từng…? Kinh nghiệm sống', 'hiện tại hoàn thành với ever/never', 'dạng rút gọn I\'ve, she\'s, haven\'t'],
-  ['A2-09', 'Mua sắm, đổi trả, phàn nàn nhẹ', 'too/enough, one/ones', 'nhấn từ quan trọng trong câu'],
-  ['A2-10', 'Tin nhắn & email công việc đơn giản', 'would like to, cấu trúc email ngắn', 'đọc to email cho trôi chảy'],
-  ['B1-01', 'Giới thiệu bản thân khi phỏng vấn', 'hiện tại hoàn thành vs quá khứ đơn', 'trọng âm từ dài: experience, responsible'],
-  ['B1-02', 'Small talk & giữ cuộc trò chuyện', 'câu hỏi đuôi, So do I / Neither do I, câu hỏi nối tiếp', 'ngữ điệu câu hỏi đuôi'],
-  ['B1-03', 'Nêu ý kiến, đồng ý & phản đối lịch sự', 'I think / In my opinion / I see your point, but…', 'nhấn mạnh để làm rõ ý'],
-  ['B1-04', 'Kể trải nghiệm chi tiết', 'quá khứ tiếp diễn vs quá khứ đơn (while/when)', 'giữ âm cuối khi nói nhanh'],
-  ['B1-05', 'Dự định & dự đoán tương lai', 'will / going to / might / may', 'dạng yếu: I\'ll, it\'ll, won\'t'],
-  ['B1-06', 'Họp nhóm & đưa đề xuất', 'Why don\'t we…? / How about…? / We could…', 'ngắt nhịp theo cụm ý'],
-  ['B1-07', 'Xử lý sự cố & phàn nàn dịch vụ', 'câu điều kiện loại 1, bị động hiện tại', 'giọng lịch sự, không cộc lốc'],
-  ['B1-08', 'Mô tả quy trình & hướng dẫn', 'câu bị động, first/next/once/finally', 'âm /ʒ/ /dʒ/: usually, manager'],
-  ['B1-09', 'Nếu tôi là…: tình huống giả định', 'câu điều kiện loại 2', 'rút gọn I\'d, you\'d'],
-  ['B1-10', 'Kể lại lời người khác nói', 'câu tường thuật (said/told/asked)', 'nghe hiểu nối âm: gonna, wanna, kinda'],
-  ['B2-01', 'Thuyết trình ngắn', 'cấu trúc mở–thân–kết, từ dẫn dắt (firstly, moving on…)', 'ngữ điệu & ngắt nghỉ khi trình bày'],
-  ['B2-02', 'Đàm phán & thuyết phục', 'if / unless / provided that / as long as', 'nhấn câu để thuyết phục'],
-  ['B2-03', 'Tranh luận có lập luận', 'although / however / whereas / on the other hand', 'nói rõ ràng ở tốc độ tự nhiên'],
-  ['B2-04', 'Nói về số liệu & xu hướng', 'rise/fall/increase sharply/slightly, mô tả biểu đồ', 'đọc số lớn, phần trăm, năm'],
-  ['B2-05', 'Tiếc nuối & giả định quá khứ', 'câu điều kiện loại 3, wish, should have', 'dạng yếu: would\'ve, should\'ve'],
-  ['B2-06', 'Nói mềm mỏng, ngoại giao', 'seem/appear, I\'m afraid…, It might be better to…', 'ngữ điệu mềm, xuống giọng nhẹ'],
-  ['B2-07', 'Cụm động từ thông dụng', 'phrasal verbs: pick up, figure out, put off…', 'nối âm phrasal verb: pick it up'],
-  ['B2-08', 'Nói tự nhiên: collocation & thành ngữ', 'collocations (make a decision, take a break…)', 'nhịp & trọng âm câu tự nhiên'],
-  ['B2-09', 'Làm rõ & xử lý hiểu lầm', 'Could you clarify…? / What I meant was…', 'diễn đạt lại khi người nghe không hiểu'],
-  ['B2-10', 'Thảo luận dài chủ đề xã hội', 'tổng hợp: lập luận, ví dụ, kết luận', 'tự nghe lại và sửa lỗi của mình'],
-].map(([id, t, g, p]) => ({ id, t, g, p, lv: id.slice(0, 2) }));
+  ['B5-01', 'Part 1: bản thân, quê quán, công việc', 'trả lời 2–3 câu theo công thức Ý chính + Lý do + Ví dụ'],
+  ['B5-02', 'Part 1: sở thích & thói quen', 'hiện tại đơn/tiếp diễn chuẩn, tránh trả lời cụt'],
+  ['B5-03', 'Part 1: kỷ niệm & quá khứ', 'quá khứ đơn, phát âm đuôi -ed'],
+  ['B5-04', 'Phát âm nền tảng', 'âm cuối, đuôi -s/-ed, trọng âm từ – lỗi người Việt hay mắc'],
+  ['B5-05', 'Part 2 nhập môn', 'đọc cue card, ghi chú 1 phút, nói đủ 1–2 phút'],
+  ['B5-06', 'Part 2: tả một người', 'tính từ miêu tả tính cách, ngoại hình'],
+  ['B5-07', 'Part 2: tả một nơi chốn', 'so sánh, there is/are, giới từ nơi chốn'],
+  ['B5-08', 'Writing Task 1 nhập môn', 'paraphrase đề, câu overview, chọn số liệu chính'],
+  ['B5-09', 'Writing Task 2 nhập môn', 'phân tích đề, bố cục 4 đoạn, câu chủ đề'],
+  ['B5-10', 'Từ nối & mạch lạc', 'firstly, however, as a result… dùng đúng, không lạm dụng'],
+  ['B6-01', 'Part 1 tự nhiên như người bản xứ', 'filler tự nhiên (well, to be honest…), câu trả lời có cá tính'],
+  ['B6-02', 'Part 2: kể một sự kiện/trải nghiệm', 'quá khứ tiếp diễn, trình tự kể chuyện'],
+  ['B6-03', 'Part 2: tả đồ vật & công nghệ', 'mệnh đề quan hệ, tính từ ghép'],
+  ['B6-04', 'Part 3 nhập môn', 'nêu ý kiến → giải thích → ví dụ → kết'],
+  ['B6-05', 'Part 3: quá khứ, hiện tại, tương lai', 'so sánh thời kỳ, dự đoán với will/might/be likely to'],
+  ['B6-06', 'Collocation theo chủ đề', 'work, education, environment, technology, health'],
+  ['B6-07', 'Grammatical Range', 'câu điều kiện, bị động, mệnh đề quan hệ trong câu nói'],
+  ['B6-08', 'Writing Task 1: line & bar chart', 'ngôn ngữ xu hướng, so sánh số liệu'],
+  ['B6-09', 'Writing Task 2: opinion essay', 'lập trường rõ, lập luận + ví dụ'],
+  ['B6-10', 'Ngữ điệu & nhấn câu', 'nhấn từ quan trọng, nối âm, ngắt nhịp tự nhiên'],
+  ['B7-01', 'Nói như người bản xứ', 'phrasal verbs & idiom thông dụng, dùng đúng ngữ cảnh'],
+  ['B7-02', 'Part 2: 2 phút không ngắt', 'kỹ thuật kéo dài ý, không lặp từ'],
+  ['B7-03', 'Part 3 trừu tượng', 'xã hội, chính sách, nguyên nhân – hệ quả'],
+  ['B7-04', 'Nói mềm & thận trọng', 'hedging: it seems, to some extent, I\'d argue…'],
+  ['B7-05', 'Lexical Resource', 'paraphrase, từ ít phổ biến, tránh lặp từ của đề'],
+  ['B7-06', 'Ngữ pháp nâng cao', 'mệnh đề rút gọn, đảo ngữ nhẹ, điều kiện hỗn hợp'],
+  ['B7-07', 'Writing Task 1: process & map', 'bị động, ngôn ngữ vị trí & thay đổi'],
+  ['B7-08', 'Writing Task 2: các dạng đề', 'discussion, problem–solution, advantages–disadvantages'],
+  ['B7-09', 'Connected speech', 'weak forms, nối âm, nhịp tiếng Anh như người bản xứ'],
+  ['B7-10', 'Thi thử & tự sửa', 'làm trọn Speaking, nghe lại, sửa lỗi của chính mình'],
+  ['B8-01', 'Idiom tự nhiên, không học thuộc', 'chọn idiom hợp ngữ cảnh, tránh nghe gượng'],
+  ['B8-02', 'Part 3: tranh luận sâu', 'phản biện, nhượng bộ, cân nhắc nhiều phía'],
+  ['B8-03', 'Độ chính xác gần tuyệt đối', 'mạo từ, giới từ, số ít/nhiều – lỗi nhỏ người Việt còn sót'],
+  ['B8-04', 'Từ vựng sắc thái', 'synonym, register trang trọng vs thân mật'],
+  ['B8-05', 'Writing Task 2 band 8', 'lập luận tinh tế, câu chủ đề sắc, kết luận mạnh'],
+  ['B8-06', 'Writing Task 1 band 8', 'chọn điểm nổi bật, so sánh chính xác'],
+  ['B8-07', 'Phát âm biểu cảm', 'ngữ điệu thể hiện thái độ, rõ ràng như người bản xứ'],
+  ['B8-08', 'Ứng biến chủ đề lạ', 'giữ trôi chảy khi gặp câu hỏi khó'],
+  ['B8-09', 'Phá trần band của người Việt', 'những lỗi giữ chân ở band 6.5–7'],
+  ['B8-10', 'Tổng duyệt', 'thi thử Speaking + Writing, đánh giá toàn diện'],
+].map(([id, t, d]) => ({ id, t, d, st: id[1] }));
 const unitById = id => UNITS.find(u => u.id === id);
-const ORDER = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
-// Chủ đề để Sam lái câu chuyện khi nói chuyện thường (tiếng Anh cho AI hiểu rõ).
-const TOPICS = {
-  A1: 'introducing yourself, family and friends, your job, daily routine and time, numbers/prices/shopping, ordering food and drinks, asking for directions, hobbies and weekends, weather and clothes, what you did last weekend',
-  A2: 'telling a story from the past, making plans and appointments, travel (airport, hotel), comparing things and places, health and seeing a doctor, phone calls and messages, home and renting, life experiences (have you ever…), shopping returns and small complaints, simple work emails',
-  B1: 'job interviews and talking about your career, small talk that keeps going, giving opinions and polite disagreement, detailed experiences, future plans and predictions, team meetings and suggestions, solving problems with a service, explaining a process, hypotheticals (if I were…), reporting what someone said',
-  B2: 'short presentations, negotiating and persuading, structured arguments, numbers and trends, regrets (if I had…), diplomatic language, common phrasal verbs, natural collocations and idioms, clarifying misunderstandings, long discussions on social issues',
-};
+const TOPICS = 'hometown, work or studies, home, hobbies, sport, music, films, reading, food and cooking, travel, weather, shopping, technology and phones, social media, friends and family, childhood, celebrations, transport, environment, health, education, success, money, art, the future';
+
+// Band IELTS: 0–9, bước 0.5.
+const toBand = x => { const n = Math.round(parseFloat(x) * 2) / 2; return n >= 1 && n <= 9 ? n : NaN; };
+const fmt = n => isNaN(n) ? '' : n.toFixed(1);
 
 // Mặc định Flash-Lite: đo 07/10/2026 trả lời 1-2s, bản Flash thường mất 20-76s vì quá tải.
 const DEFAULT_MODEL = 'gemini-flash-lite-latest';
 let key = load('gs_key', '');
 let model = load('gs_model', DEFAULT_MODEL);
-if (model === 'gemini-flash-latest') { model = DEFAULT_MODEL; store('gs_model', model); } // bỏ mặc định cũ đã lưu
-let profile = load('gs_profile', { level: '', weak: [], note: '' });
-let scores = load('gs_scores', {});   // { 'A1-03': {score: 8, date} }
-let tests = load('gs_tests', []);     // lịch sử level: [{date, level}]
-let hist = load('gs_hist', []);       // {role:'user'|'model', text}
-let mode = load('gs_mode', '');       // '' = nói chuyện; TEST / LESSON / REVIEW = đang làm hoạt động
-let unit = load('gs_unit', '');       // bài đang học
-const MAX_HIST = 40; // ponytail: chỉ gửi 40 lượt gần nhất; trình độ & điểm yếu dài hạn nằm trong profile
-const today = () => new Date().toLocaleDateString('sv'); // YYYY-MM-DD theo giờ máy
+if (model === 'gemini-flash-latest') { model = DEFAULT_MODEL; store('gs_model', model); }
+let profile = load('ie_profile', { band: '', weak: [], note: '' }); // band = ước tính band Speaking
+let scores = load('ie_scores', {});  // { 'B6-04': {score: 8, date} }
+let tests = load('ie_tests', []);    // thi thử: [{date, kind, overall, crit:{...}}]
+let hist = load('ie_hist', []);      // {role:'user'|'model', text}
+let mode = load('ie_mode', '');      // '' = nói chuyện; SPEAKING / WRITING / LESSON / REVIEW
+let unit = load('ie_unit', '');
+const MAX_HIST = 40; // ponytail: chỉ gửi 40 lượt gần nhất; band & điểm yếu dài hạn nằm trong profile
+const today = () => new Date().toLocaleDateString('sv');
+const CRIT = { Speaking: ['FC', 'LR', 'GRA', 'P'], Writing: ['TA', 'CC', 'LR', 'GRA'] };
 
-// Bài tiếp theo: bài chưa học đầu tiên kể từ level hiện tại; hết thì quay lại bài chưa học sớm nhất.
+function stageOf(b) { b = toBand(b); return isNaN(b) || b < 5.5 ? '5' : b < 6.5 ? '6' : b < 7.5 ? '7' : '8'; }
 function nextUnit() {
-  const lv = /^C/.test(profile.level) ? 'B2' : profile.level; // C1/C2: ôn từ B2
-  const start = Math.max(0, UNITS.findIndex(u => u.lv === lv));
+  const start = UNITS.findIndex(u => u.st === stageOf(profile.band));
   return UNITS.slice(start).find(u => !scores[u.id]) || UNITS.find(u => !scores[u.id]) || UNITS[UNITS.length - 1];
 }
 
 function systemPrompt() {
-  const lv = /^(A1|A2|B1|B2)$/.test(profile.level) ? profile.level : /^C/.test(profile.level) ? 'B2' : 'A2';
-  const up = { A1: 'A2', A2: 'B1', B1: 'B2', B2: 'B2' }[lv];
   const u = unitById(unit);
-  return `You are Sam, a friendly, relaxed English-speaking friend of a Vietnamese adult who wants to communicate confidently in English (CEFR B2). Mostly you just chat like a real friend over text — about their day, work, plans, food, travel, hobbies, news, feelings — and share a bit about yourself too. When they ask for an activity (bracketed command), you also know how to teach well.
-You opened this chat with: "Hey! I'm Sam. Nice to meet you! How's your day going so far?" (plus a Vietnamese note that they can use Vietnamese when stuck).
-Their estimated level: ${profile.level || 'unknown yet'}. Things they struggle with: ${profile.weak.join('; ') || 'unknown yet'}. Notes: ${profile.note || 'none'}.
-Typical Vietnamese-speaker problems: dropped final consonants and -s/-ed endings, word stress, /θ ð ʃ ʒ/, consonant clusters, missing articles and plurals, tense and verb agreement ("I am agree", "she go"), word-by-word translation.
+  const b = profile.band || 'unknown yet';
+  return `You are Sam, a native English speaker and an experienced IELTS coach (you know the official band descriptors inside out), chatting with a Vietnamese adult friend who wants a high IELTS band and to sound like a native speaker. Mostly you just chat like a real native friend over text and share a bit about yourself too. When they send a bracketed command, you run that IELTS activity.
+You opened this chat with: "Hey! I'm Sam, your IELTS buddy. How's your day going?" (plus a Vietnamese note that they can use Vietnamese when stuck).
+Their estimated Speaking band: ${b}. Things they struggle with: ${profile.weak.join('; ') || 'unknown yet'}. Notes: ${profile.note || 'none'}.
+Typical Vietnamese-speaker problems: dropped final consonants and -s/-ed endings, flat intonation and word stress, /θ ð ʃ ʒ/, missing articles and plurals, tense and verb agreement, word-by-word translation, short answers with no extension, overused memorised phrases.
 
 CASUAL CHAT (default, and after [TALK]):
 - Always reply in English. Vietnamese is allowed only inside 💡 and ✏️ lines.
-- Write like texting a friend: 1–3 short sentences, warm and natural, then ask ONE follow-up question.
-- Match their level, slightly above is good. From time to time steer naturally (never as a lesson) toward useful situations: ${TOPICS[lv]}; and sometimes ${TOPICS[up].split(', ').slice(0, 4).join(', ')}.
-- Whenever their message contains any Vietnamese, first show how to say it in English on a line starting with "💡 " (e.g. "💡 Bạn có thể nói: I'm exhausted today."), then reply to what they meant. Never use "💡" for anything else.
-- Corrections are light: only when a mistake matters or keeps repeating, add ONE line at the end starting with "✏️ " with the natural way to say it and a few Vietnamese words of why. At most one ✏️ line; ignore tiny slips.
+- Talk like a real native speaker texting a friend: natural contractions, everyday phrasal verbs and idioms where they fit, but pitched about half a band above theirs so they can follow. 1–3 short sentences, then ONE follow-up question.
+- Often steer naturally toward common IELTS Speaking topics (${TOPICS}) and sometimes ask a real Part 1 or Part 3 style question in a casual way — never announce it as a test.
+- Whenever their message contains any Vietnamese, first show how a native would say it on a line starting with "💡 " (e.g. "💡 Người bản xứ sẽ nói: I'm wiped out today."), then reply. Never use "💡" for anything else.
+- At most ONE line at the end starting with "✏️ ": either fix a mistake that matters, or, if their sentence was correct but sounded textbook, show how a native would say it ("✏️ Tự nhiên hơn: …"), with a few Vietnamese words of why. Skip it when nothing is worth it.
 
-ACTIVITIES (explanations may be in Vietnamese; put every English sentence meant to be read aloud on its own line starting with "🗣 "; one step per reply, wait for the learner each time; when the activity is finished, add <done/> and invite them back to chatting):
-[TEST] Placement test: 10 questions ONE AT A TIME, adapting difficulty (grammar, vocabulary, short reading, 2 open speaking questions), numbered "Câu 1/10". Don't teach during the test. After answer 10: CEFR level, strengths, weak points, profile tag, <done/>.
-[LESSON <unit id>] Teach ${u ? `${u.id} "${u.t}" — grammar: ${u.g}; pronunciation: ${u.p}` : 'the given unit'}. Steps: 1) communication goal (1 line Vietnamese) + 5–6 key phrases; 2) grammar point, short, 2 examples; 3) pronunciation focus with the typical Vietnamese mistake and 3 items to repeat; 4) role-play the situation, you play the other person, 4–6 turns; 5) quick check: 5 questions one at a time, numbered "Câu 1/5"…"Câu 5/5". Only after the 5th answer: say how many were correct, 1 line of feedback, then exactly <score>{"unit":"${u ? u.id : ''}","correct":N,"total":5}</score>, a profile tag, <done/>. Never output a score tag at any other time.
-[REVIEW] 5 short exercises one at a time on their weak points; then say which improved, profile tag, <done/>.
+ACTIVITIES (explanations may be in Vietnamese; every English sentence meant to be read aloud goes on its own line starting with "🗣 "; ONE step per reply and wait for the learner; when finished add <done/> and invite them back to chatting):
+[SPEAKING] Full mock Speaking test, behave like a real examiner: Part 1 — 4 questions on 1–2 familiar topics, one at a time; Part 2 — give a cue card (topic + 4 bullet prompts), tell them in Vietnamese they have 1 minute to prepare then should talk for 1–2 minutes in ONE message (they may record several times with 🎤 before sending); one short follow-up question; Part 3 — 4 deeper discussion questions linked to Part 2, one at a time. No feedback during the test. At the end: band for each criterion — Fluency & Coherence, Lexical Resource, Grammatical Range & Accuracy, Pronunciation (say Pronunciation is only estimated from the speech-to-text transcript) — and the overall band (IELTS rounding), 3 concrete things to fix, and a native-speaker / band-8 version of two of their answers on 🗣 lines. The SAME reply that gives the scores must end with exactly <band>{"kind":"Speaking","overall":N,"FC":N,"LR":N,"GRA":N,"P":N}</band>, a profile tag, <done/>.
+[WRITING] Ask them to paste the task prompt and their essay (Task 1 or Task 2) if they have not. Then mark like an examiner: band for Task Achievement/Response, Coherence & Cohesion, Lexical Resource, Grammatical Range & Accuracy, overall; list the main errors with corrections; rewrite their introduction and one body paragraph at band 8 (plain lines, no 🗣 — writing is not read aloud). The SAME reply that gives the scores must end with exactly <band>{"kind":"Writing","overall":N,"TA":N,"CC":N,"LR":N,"GRA":N}</band>, a profile tag, <done/>.
+[LESSON <unit id>] Teach ${u ? `${u.id} "${u.t}" — focus: ${u.d}` : 'the given unit'}. Steps: 1) goal in 1 Vietnamese line + what the examiner rewards here; 2) a short band-8 model answer or key native expressions on 🗣 lines; 3) the technique or grammar point, brief, with the typical Vietnamese mistake; 4) practice: give a real IELTS-style question, they answer, you give a band estimate plus a native upgrade of their answer — do this 2–3 times; 5) quick check: 5 questions one at a time, numbered "Câu 1/5"…"Câu 5/5". Only after the 5th answer: how many were correct, 1 line of feedback, then exactly <score>{"unit":"${u ? u.id : ''}","correct":N,"total":5}</score>, a profile tag, <done/>. Never output a score tag at any other time. Never output a band tag except in the final scoring reply of [SPEAKING] or [WRITING].
+[REVIEW] 5 short exercises one at a time on their weak points, each with a native upgrade; then say which improved, profile tag, <done/>.
 [TALK] Stop any activity; go back to casual chat naturally.
-If the level is unknown when they start a LESSON or REVIEW, suggest [TEST] in one line, then continue anyway.
 
-ALWAYS: plain text, no markdown. After a few messages, and whenever your picture changes, silently append at the very end: <profile>{"level":"A1|A2|B1|B2|C1|C2","weak":["..."],"note":"..."}</profile> with the FULL updated profile (level: your CEFR estimate, or "" if you have seen fewer than 8 of their messages — change it only after a [TEST] or clear evidence over many messages, one step at a time; weak: at most 6 short Vietnamese items, only real English problems such as grammar, vocabulary or pronunciation; note: one short Vietnamese sentence about their progress; always write Vietnamese with full diacritics). Never mention these tags.`;
+ALWAYS: plain text, no markdown. When your picture changes, silently append at the very end: <profile>{"band":"N","weak":["..."],"note":"..."}</profile> with the FULL updated profile (band: your estimate of their Speaking band in 0.5 steps, or "" if you have seen fewer than 8 of their messages — change it only after a [SPEAKING] test or clear evidence over many messages; weak: at most 6 short Vietnamese items, only real English problems; note: one short Vietnamese sentence about their progress; always write Vietnamese with full diacritics). Never mention these tags.`;
 }
 
-// Tách thẻ <profile>/<score>/<done/> khỏi lời AI, cập nhật hồ sơ, điểm, chế độ. Trả về phần chữ để hiện.
+// Tách thẻ <profile>/<score>/<band>/<done/> khỏi lời AI, cập nhật hồ sơ, điểm, kết quả thi thử, chế độ.
 function takeTags(text) {
-  const finished = /<done\s*\/?>/.test(text);
+  const bm = text.match(/<band>([\s\S]*?)<\/band>/);
+  const exam = mode === 'SPEAKING' || mode === 'WRITING';
+  const finished = /<done\s*\/?>/.test(text) || (exam && !!bm); // thẻ band chỉ có ở lượt chấm cuối → coi như xong bài
   const pm = text.match(/<profile>([\s\S]*?)<\/profile>/);
   if (pm) {
     try {
       const p = JSON.parse(pm[1]);
-      const i = ORDER.indexOf(p.level), j = ORDER.indexOf(profile.level);
+      let nb = toBand(p.band);
+      const ob = toBand(profile.band);
       const chats = hist.filter(m => m.role === 'user' && !cmdLabel(m.text)).length;
-      if (i < 0) p.level = '';
-      else if (mode !== 'TEST' && j < 0 && chats < 8) p.level = ''; // đoán lần đầu từ trò chuyện: cần ≥8 câu (Lite từng phán B2 sau 1 câu)
-      else if (mode !== 'TEST' && j >= 0) p.level = ORDER[Math.max(j - 1, Math.min(j + 1, i))]; // ngoài bài đo: chỉ đổi 1 bậc
-      if (p.level && p.level !== profile.level) tests.push({ date: today(), level: p.level });
-      profile = { level: p.level || profile.level, weak: Array.isArray(p.weak) ? p.weak : profile.weak, note: p.note || profile.note };
-      store('gs_profile', profile); store('gs_tests', tests);
+      if (mode !== 'SPEAKING') {
+        if (isNaN(ob) && chats < 8) nb = NaN; // đoán lần đầu từ trò chuyện: cần ≥8 câu
+        else if (!isNaN(ob) && !isNaN(nb)) nb = Math.max(ob - 0.5, Math.min(ob + 0.5, nb)); // ngoài thi thử: mỗi lần đổi ≤0.5
+      }
+      profile = { band: isNaN(nb) ? profile.band : fmt(nb), weak: Array.isArray(p.weak) ? p.weak : profile.weak, note: p.note || profile.note };
+      store('ie_profile', profile);
+    } catch {}
+  }
+  if (bm && exam) { // chỉ nhận khi bài thi kết thúc
+    try {
+      const b = JSON.parse(bm[1]), kind = mode === 'SPEAKING' ? 'Speaking' : 'Writing';
+      const crit = {}; for (const c of CRIT[kind]) crit[c] = fmt(toBand(b[c]));
+      const overall = toBand(b.overall);
+      if (!isNaN(overall)) {
+        tests.push({ date: today(), kind, overall: fmt(overall), crit }); store('ie_tests', tests);
+        if (kind === 'Speaking') { profile.band = fmt(overall); store('ie_profile', profile); }
+      }
     } catch {}
   }
   const sm = text.match(/<score>([\s\S]*?)<\/score>/);
-  if (sm && finished && mode === 'LESSON') { // chỉ nhận điểm khi bài thật sự kết thúc
+  if (sm && finished && mode === 'LESSON') { // chỉ nhận điểm khi bài học kết thúc
     try {
       const s = JSON.parse(sm[1]);
       const id = unitById(s.unit) ? s.unit : unit;
       const n = Math.max(0, Math.min(10, Math.round(10 * Number(s.correct) / (Number(s.total) || 5))));
-      if (unitById(id) && !isNaN(n)) { scores[id] = { score: n, date: today() }; store('gs_scores', scores); }
+      if (unitById(id) && !isNaN(n)) { scores[id] = { score: n, date: today() }; store('ie_scores', scores); }
     } catch {}
   }
   if (finished) setMode('');
   showLevel();
-  return text.replace(/<(profile|score)>[\s\S]*?(<\/\1>|$)/g, '').replace(/<\/?done\s*\/?>/g, '').trim();
+  return text.replace(/<(profile|score|band)>[\s\S]*?(<\/\1>|$)/g, '').replace(/<\/?done\s*\/?>/g, '').trim();
 }
-// Có dòng 🗣 (lúc học) thì chỉ đọc các dòng đó; nói chuyện thường thì đọc mọi dòng trừ ✏️ 💡.
+// Có dòng 🗣 (lúc học/thi) thì chỉ đọc các dòng đó; nói chuyện thường thì đọc mọi dòng trừ ✏️ 💡.
 function spoken(text) {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
   const say = lines.filter(l => l.startsWith('🗣'));
   return (say.length ? say.map(l => l.replace(/^🗣\s*/, '')) : lines.filter(l => !/^(✏️|💡)/.test(l))).join(' ');
 }
 
-function showLevel() { $('#level').textContent = profile.level || 'chưa rõ'; }
+function showLevel() { $('#level').textContent = profile.band ? `Band ${profile.band}` : 'chưa rõ'; }
 
 function setMode(m) {
-  mode = m; store('gs_mode', mode);
-  const label = { TEST: '📝 Đang đo trình độ', REVIEW: '🔁 Đang ôn điểm yếu', LESSON: `📚 Bài ${unit}: ${unitById(unit)?.t || ''}` }[mode];
+  mode = m; store('ie_mode', mode);
+  const label = { SPEAKING: '🎤 Đang thi thử Speaking', WRITING: '✍️ Đang chấm Writing', REVIEW: '🔁 Đang ôn điểm yếu', LESSON: `📚 ${unit}: ${unitById(unit)?.t || ''}` }[mode];
   $('#modebar').hidden = !label;
   if (label) $('#modeText').textContent = label;
+  $('#text').classList.toggle('long', mode === 'SPEAKING' || mode === 'WRITING');
 }
 
 function cmdLabel(text) {
-  const m = text.match(/^\[(TEST|TALK|REVIEW|LESSON)(?: ([A-B][12]-\d\d))?\]$/);
+  const m = text.match(/^\[(SPEAKING|WRITING|TALK|REVIEW|LESSON)(?: (B[5-8]-\d\d))?\]$/);
   if (!m) return null;
   if (m[1] === 'LESSON') return `— Bài ${m[2]}: ${unitById(m[2])?.t || ''} —`;
-  return { TEST: '— Bắt đầu đo trình độ —', TALK: '— Quay lại nói chuyện —', REVIEW: '— Ôn điểm yếu —' }[m[1]];
+  return { SPEAKING: '— Thi thử IELTS Speaking —', WRITING: '— Chấm IELTS Writing —', TALK: '— Quay lại nói chuyện —', REVIEW: '— Ôn điểm yếu —' }[m[1]];
 }
 
 function render(m) {
@@ -299,12 +311,13 @@ function renderRoad() {
   const road = $('#road'); road.innerHTML = '';
   const done = UNITS.filter(u => scores[u.id]);
   const avg = done.length ? (done.reduce((s, u) => s + scores[u.id].score, 0) / done.length).toFixed(1) : '–';
+  const last = k => [...tests].reverse().find(t => t.kind === k);
   const nxt = nextUnit();
 
   const sum = el('div', 'card');
-  sum.append(el('h2', '', 'Tổng quan'));
+  sum.append(el('h2', '', 'Band của bạn'));
   const st = el('div', 'stats');
-  for (const [v, k] of [[profile.level || '?', 'Trình độ'], [`${done.length}/${UNITS.length}`, 'Bài đã học'], [avg, 'Điểm TB /10']]) {
+  for (const [v, k] of [[profile.band || '?', 'Nói (ước tính)'], [last('Speaking')?.overall || '–', 'Speaking thi thử'], [last('Writing')?.overall || '–', 'Writing thi thử']]) {
     const d = el('div'); d.append(el('b', '', v), el('span', '', k)); st.append(d);
   }
   sum.append(st);
@@ -313,24 +326,31 @@ function renderRoad() {
     sum.append(el('p', 'hint', 'Hay mắc:'));
     const ch = el('div', 'chips'); profile.weak.forEach(w => ch.append(el('span', '', w))); sum.append(ch);
   }
-  if (tests.length) sum.append(el('p', 'hint', 'Tiến trình: ' + tests.map(t => `${t.date} ${t.level}`).join(' → ')));
   const acts = el('div', 'acts');
-  for (const [icon, label, fn] of [['📝', 'Đo trình độ', () => start('[TEST]')], ['📚', 'Bài tiếp theo', () => startLesson(nxt.id)], ['🔁', 'Ôn điểm yếu', () => start('[REVIEW]')]]) {
-    const b = el('button'); b.append(el('i', '', icon), label); b.onclick = fn; acts.append(b);
+  for (const [label, fn, cls] of [['🎤 Thi thử Speaking', () => start('[SPEAKING]'), 'pri'], ['✍️ Chấm Writing', () => start('[WRITING]'), 'pri'],
+                                  ['📚 Bài tiếp theo', () => startLesson(nxt.id)], ['🔁 Ôn điểm yếu', () => start('[REVIEW]')]]) {
+    const b = el('button', cls || '', label); b.onclick = fn; acts.append(b);
   }
   sum.append(acts);
-  sum.append(el('p', 'hint', 'Ngày thường cứ nói chuyện với Sam là đủ. Muốn học bài bản: 📝 đo trình độ một lần, rồi mỗi ngày học 📚 một phần bài (một bài thường 2–3 buổi). Học xong một level thì đo lại.'));
+  sum.append(el('p', 'hint', `Bài đã học: ${done.length}/${UNITS.length} · điểm TB ${avg}/10. Mỗi ngày: nói chuyện với Sam 10–15 phút + học 📚 một phần bài. Mỗi 2 tuần 🎤 thi thử một lần để xem band lên chưa. Phát âm chỉ được ước lượng qua chữ nhận dạng giọng nói.`));
   road.append(sum);
 
-  for (const lv of LEVELS) {
-    const us = UNITS.filter(u => u.lv === lv);
+  if (tests.length) {
+    const h = el('div', 'card'); h.append(el('h2', '', 'Lịch sử thi thử'));
+    for (const t of [...tests].reverse().slice(0, 8))
+      h.append(el('p', 'hist', `${t.date} · ${t.kind} ${t.overall} (${Object.entries(t.crit).map(([k, v]) => `${k} ${v || '?'}`).join(' · ')})`));
+    road.append(h);
+  }
+
+  for (const sk of Object.keys(STAGES)) {
+    const us = UNITS.filter(u => u.st === sk);
     const n = us.filter(u => scores[u.id]).length;
     const c = el('div', 'card');
-    c.append(el('h2', '', `${lv} · ${n}/${us.length} bài`), el('div', 'hint', LEVEL_GOAL[lv]));
+    c.append(el('h2', '', `Chặng band ${sk} · ${n}/${us.length} bài`), el('div', 'hint', STAGES[sk]));
     const bar = el('div', 'bar'); const fill = el('i'); fill.style.width = (n / us.length * 100) + '%'; bar.append(fill); c.append(bar);
     for (const u of us) {
       const row = el('div', 'unit' + (u === nxt ? ' next' : ''));
-      const t = el('div', 't'); t.append(el('b', '', `${u.id.slice(3)}. ${u.t}`), el('small', '', `Ngữ pháp: ${u.g} · Phát âm: ${u.p}`));
+      const t = el('div', 't'); t.append(el('b', '', `${u.id.slice(3)}. ${u.t}`), el('small', '', u.d));
       row.append(t);
       if (scores[u.id]) row.append(el('span', 's', `${scores[u.id].score}/10`));
       const b = el('button', '', scores[u.id] ? 'Học lại' : u === nxt ? 'Học' : 'Mở');
@@ -359,7 +379,7 @@ function speak(t) {
   speechSynthesis.speak(u);
 }
 
-// Gọi AI. Tách riêng để sau này thay bằng model chạy trên máy (không cần mạng).
+// Gọi AI. Tách riêng để có thể thay nguồn AI khác.
 async function askAI(onWait) {
   const body = JSON.stringify({
     system_instruction: { parts: [{ text: systemPrompt() }] },
@@ -391,8 +411,9 @@ async function send(text) {
   text = text.trim();
   if (!text || busy) return;
   if (!key) { $('#set').showModal(); return; }
-  const cmd = text.match(/^\[(TEST|TALK|REVIEW|LESSON)/);
+  const cmd = text.match(/^\[(SPEAKING|WRITING|TALK|REVIEW|LESSON)/);
   if (cmd) setMode(cmd[1] === 'TALK' ? '' : cmd[1]);
+  const wasWriting = mode === 'WRITING';
   busy = true;
   hist.push({ role: 'user', text });
   render(hist.at(-1));
@@ -400,10 +421,10 @@ async function send(text) {
   try {
     const shown = takeTags(await askAI(t => wait.textContent = t));
     hist.push({ role: 'model', text: shown });
-    store('gs_hist', hist.slice(-MAX_HIST));
+    store('ie_hist', hist.slice(-MAX_HIST));
     wait.remove();
     render(hist.at(-1));
-    speak(spoken(shown));
+    if (!wasWriting) speak(spoken(shown)); // Writing: không đọc to bài văn
   } catch (e) {
     hist.pop(); // bỏ câu chưa được trả lời để lịch sử vẫn xen kẽ user/model
     wait.className = 'cmd';
@@ -412,14 +433,19 @@ async function send(text) {
 }
 
 function start(cmd) { show('vChat'); send(cmd); }
-function startLesson(id) { unit = id; store('gs_unit', unit); start(`[LESSON ${id}]`); }
+function startLesson(id) { unit = id; store('ie_unit', unit); start(`[LESSON ${id}]`); }
 
-// Nhận giọng nói (Chrome Android / Edge). Trình duyệt không hỗ trợ thì ẩn nút.
+// Nhận giọng nói. Nói chuyện thường: nói xong tự gửi. Lúc thi Speaking/Writing: chữ nối vào ô nhập,
+// nói nhiều lần được (Part 2 dài 1–2 phút), xong bấm ➤ mới gửi.
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 if (SR) {
   const rec = new SR();
   rec.lang = 'en-US'; rec.interimResults = false;
-  rec.onresult = e => send(e.results[0][0].transcript);
+  rec.onresult = e => {
+    const said = e.results[0][0].transcript;
+    if (mode === 'SPEAKING' || mode === 'WRITING') { const t = $('#text'); t.value = (t.value ? t.value + ' ' : '') + said; }
+    else send(said);
+  };
   rec.onend = () => $('#mic').classList.remove('on');
   rec.onerror = e => { if (e.error !== 'no-speech' && e.error !== 'aborted') render({ role: 'model', text: '⚠️ mic: ' + e.error }); };
   $('#mic').onclick = () => {
@@ -430,7 +456,7 @@ if (SR) {
 } else $('#mic').hidden = true;
 
 $('#send').onclick = () => { send($('#text').value); $('#text').value = ''; };
-$('#text').onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#send').click(); } };
+$('#text').onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey && mode !== 'WRITING') { e.preventDefault(); $('#send').click(); } };
 $('#stop').onclick = () => send('[TALK]');
 document.querySelectorAll('nav button').forEach(b => b.onclick = () => show(b.dataset.view));
 $('#level').onclick = () => show('vRoad');
@@ -441,13 +467,13 @@ $('#save').onclick = () => {
   store('gs_key', key); store('gs_model', model); $('#set').close();
 };
 $('#reset').onclick = () => {
-  if (!confirm('Xoá toàn bộ trò chuyện, trình độ và điểm?')) return;
-  profile = { level: '', weak: [], note: '' }; hist = []; scores = {}; tests = []; unit = '';
-  for (const k of ['gs_profile', 'gs_hist', 'gs_scores', 'gs_tests', 'gs_unit', 'gs_mode']) try { localStorage.removeItem(k); } catch {}
+  if (!confirm('Xoá toàn bộ trò chuyện, band, điểm và lịch sử thi thử?')) return;
+  profile = { band: '', weak: [], note: '' }; hist = []; scores = {}; tests = []; unit = '';
+  for (const k of Object.keys(localStorage)) if (/^(ie_|gs_(?!key|model))/.test(k)) try { localStorage.removeItem(k); } catch {}
   $('#chat').innerHTML = ''; setMode(''); showLevel(); greet(); $('#set').close();
 };
 
-function greet() { render({ role: 'model', text: "Hey! I'm Sam. Nice to meet you!\nHow's your day going so far?\n💡 Cứ nói thoải mái, bí chữ thì nói tiếng Việt, mình chỉ cách nói bằng tiếng Anh. Muốn học bài bản thì xem tab 📊." }); }
+function greet() { render({ role: 'model', text: "Hey! I'm Sam, your IELTS buddy.\nHow's your day going?\n💡 Cứ nói thoải mái như với bạn bè, bí chữ thì nói tiếng Việt, mình chỉ cách người bản xứ nói. Thi thử Speaking, chấm Writing và lộ trình band ở tab 🎯 IELTS." }); }
 
 showLevel();
 setMode(mode);
