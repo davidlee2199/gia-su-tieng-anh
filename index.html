@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1d4ed8">
+<title>Gia sư tiếng Anh</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root { --main:#1d4ed8; --bg:#f4f6fb; --ai:#fff; --me:#dbe7ff; --fix:#fff4e0; --ink:#1a1f2b; --mute:#6b7280; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink);
+         height:100dvh; display:flex; flex-direction:column; }
+  header { background:var(--main); color:#fff; padding:10px 14px; display:flex; align-items:center; gap:8px; }
+  header h1 { font-size:17px; margin:0; flex:1; }
+  #level { background:#fff; color:var(--main); border-radius:99px; padding:2px 10px; font-weight:700; font-size:13px; }
+  header button { background:none; border:0; color:#fff; font-size:20px; padding:4px; }
+  #modes { display:flex; gap:6px; padding:8px 10px; overflow-x:auto; }
+  #modes button { flex:1; white-space:nowrap; border:1px solid var(--main); background:#fff; color:var(--main);
+                  border-radius:10px; padding:8px 6px; font-size:14px; font-weight:600; }
+  #chat { flex:1; overflow-y:auto; padding:10px 12px 16px; }
+  .msg { max-width:88%; margin:6px 0; padding:9px 12px; border-radius:14px; white-space:pre-wrap; word-wrap:break-word; }
+  .ai { background:var(--ai); box-shadow:0 1px 2px #0001; }
+  .me { background:var(--me); margin-left:auto; }
+  .cmd { margin:10px auto; text-align:center; color:var(--mute); font-size:13px; }
+  .say { color:var(--main); font-weight:600; }
+  .fix { display:block; background:var(--fix); border-radius:8px; padding:4px 8px; margin:4px 0; }
+  .ai .play { border:0; background:none; font-size:18px; padding:0 0 0 4px; }
+  footer { display:flex; gap:6px; padding:8px 10px calc(8px + env(safe-area-inset-bottom)); background:#fff; border-top:1px solid #e5e7eb; }
+  #text { flex:1; border:1px solid #d1d5db; border-radius:12px; padding:10px; font:inherit; resize:none; height:46px; }
+  footer button { border:0; border-radius:12px; min-width:48px; font-size:20px; background:var(--main); color:#fff; }
+  #mic.on { background:#dc2626; }
+  dialog { border:0; border-radius:14px; width:min(420px,92vw); }
+  dialog label { display:block; margin:10px 0 4px; font-weight:600; font-size:14px; }
+  dialog input { width:100%; padding:9px; border:1px solid #d1d5db; border-radius:8px; font:inherit; }
+  dialog .row { display:flex; gap:8px; margin-top:14px; }
+  dialog .row button { flex:1; padding:10px; border-radius:10px; border:1px solid var(--main); background:#fff; color:var(--main); font-weight:600; }
+  dialog .row button.pri { background:var(--main); color:#fff; }
+  .hint { color:var(--mute); font-size:13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Gia sư tiếng Anh</h1>
+  <span id="level">chưa đo</span>
+  <button id="openSet" aria-label="Cài đặt">⚙️</button>
+</header>
+<div id="modes">
+  <button data-cmd="TEST">📝 Đo trình độ</button>
+  <button data-cmd="LESSON">📚 Học bài</button>
+  <button data-cmd="TALK">💬 Nói chuyện</button>
+</div>
+<main id="chat"></main>
+<footer>
+  <button id="mic" aria-label="Nói">🎤</button>
+  <textarea id="text" placeholder="Gõ hoặc bấm 🎤 để nói…"></textarea>
+  <button id="send" aria-label="Gửi">➤</button>
+</footer>
+
+<dialog id="set">
+  <h3 style="margin:0">Cài đặt</h3>
+  <label for="key">Khoá Gemini API (miễn phí)</label>
+  <input id="key" type="password" autocomplete="off" placeholder="AIza…">
+  <p class="hint">Lấy khoá free tại <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a>. Khoá chỉ lưu trên máy này.</p>
+  <label for="model">Model</label>
+  <input id="model">
+  <div class="row">
+    <button id="reset">Xoá hồ sơ & lịch sử</button>
+    <button id="save" class="pri">Lưu</button>
+  </div>
+</dialog>
+
+<script>
+const $ = s => document.querySelector(s);
+const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
+const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+let key = load('gs_key', '');
+let model = load('gs_model', 'gemini-flash-latest');
+let profile = load('gs_profile', { level: '', weak: [], note: '' });
+let hist = load('gs_hist', []); // {role:'user'|'model', text}
+const MAX_HIST = 40; // ponytail: chỉ gửi 40 lượt gần nhất; điểm yếu dài hạn nằm trong profile
+
+function systemPrompt() {
+  return `You are a patient, encouraging personal English tutor for a Vietnamese adult learner. Explain in Vietnamese, practise in English.
+Learner profile from previous sessions: level=${profile.level || 'not tested yet'}; weak points=${profile.weak.join('; ') || 'unknown'}; notes=${profile.note || 'none'}.
+The learner often speaks through speech recognition, so odd or wrong words in their messages may be mispronunciations; when that is likely, say which word and how to pronounce it.
+
+Output rules:
+- Put every English sentence you want read aloud on its own line starting with "🗣 ". Other lines (Vietnamese explanations) are shown but not read.
+- When the learner makes a mistake, add a line starting with "✏️ " giving the corrected sentence and a one-line Vietnamese explanation.
+- Keep each reply short (under about 120 words) and always end with a question or task for the learner.
+- Plain text only, no markdown.
+- Whenever you learn something new about the learner's level or weak points, append at the very end exactly one tag: <profile>{"level":"A1|A2|B1|B2|C1|C2","weak":["..."],"note":"..."}</profile> containing the FULL updated profile (weak: at most 8 short items in Vietnamese; note: one short Vietnamese sentence).
+
+Modes, chosen by a bracketed command from the learner:
+[TEST] Placement test: ask 10 questions ONE AT A TIME, adapting difficulty to the answers (mix grammar, vocabulary, short reading, and 2 open speaking questions). Number them "Câu 1/10"... Do not teach during the test. After answer 10, give the CEFR level (A1–C2), strengths, weak points and a 2-week study plan, then emit the profile tag.
+[LESSON] One short lesson at the learner's level on their top weak point (or the next core topic for that level): brief explanation, 2–3 examples, then 3 practice exercises one at a time, correcting each answer.
+[TALK] Free conversation on everyday or work topics at the learner's level; correct mistakes gently with ✏️ lines.
+If the level is unknown and they choose LESSON or TALK, suggest [TEST] first in one line, then continue anyway.`;
+}
+
+// Tách thẻ <profile> khỏi lời AI, cập nhật hồ sơ. Trả về phần chữ để hiện.
+function takeProfile(text) {
+  const m = text.match(/<profile>([\s\S]*?)<\/profile>/);
+  if (m) {
+    try {
+      const p = JSON.parse(m[1]);
+      profile = { level: p.level || profile.level, weak: Array.isArray(p.weak) ? p.weak : profile.weak, note: p.note || profile.note };
+      store('gs_profile', profile);
+      showLevel();
+    } catch {}
+  }
+  return text.replace(/<profile>[\s\S]*?(<\/profile>|$)/g, '').trim();
+}
+const spoken = text => text.split('\n').filter(l => l.startsWith('🗣')).map(l => l.replace(/^🗣\s*/, '')).join(' ');
+
+function showLevel() { $('#level').textContent = profile.level || 'chưa đo'; }
+
+function render(m) {
+  const cmd = m.text.match(/^\[(TEST|LESSON|TALK)\]$/);
+  const div = document.createElement('div');
+  if (cmd) {
+    div.className = 'cmd';
+    div.textContent = { TEST: '— Bắt đầu đo trình độ —', LESSON: '— Bắt đầu học bài —', TALK: '— Bắt đầu nói chuyện —' }[cmd[1]];
+  } else if (m.role === 'user') {
+    div.className = 'msg me';
+    div.textContent = m.text;
+  } else {
+    div.className = 'msg ai';
+    for (const line of m.text.split('\n')) {
+      const span = document.createElement('span');
+      if (line.startsWith('🗣')) span.className = 'say';
+      if (line.startsWith('✏️')) span.className = 'fix';
+      span.textContent = line + (span.className === 'fix' ? '' : '\n');
+      div.append(span);
+    }
+    const say = spoken(m.text);
+    if (say) {
+      const b = document.createElement('button');
+      b.className = 'play'; b.textContent = '🔊'; b.setAttribute('aria-label', 'Nghe lại');
+      b.onclick = () => speak(say);
+      div.append(b);
+    }
+  }
+  $('#chat').append(div);
+  $('#chat').scrollTop = $('#chat').scrollHeight;
+  return div;
+}
+
+function speak(t) {
+  if (!t || !window.speechSynthesis) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(t);
+  u.lang = 'en-US'; u.rate = 0.95;
+  const v = speechSynthesis.getVoices().find(v => v.lang === 'en-US') || speechSynthesis.getVoices().find(v => v.lang.startsWith('en'));
+  if (v) u.voice = v;
+  speechSynthesis.speak(u);
+}
+
+let busy = false;
+async function send(text) {
+  text = text.trim();
+  if (!text || busy) return;
+  if (!key) { $('#set').showModal(); return; }
+  busy = true;
+  hist.push({ role: 'user', text });
+  render(hist.at(-1));
+  const wait = render({ role: 'model', text: '…' });
+  try {
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: systemPrompt() }] },
+        contents: hist.slice(-MAX_HIST).map(m => ({ role: m.role, parts: [{ text: m.text }] })),
+      }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error?.message || r.status);
+    const raw = (data.candidates?.[0]?.content?.parts || []).filter(p => !p.thought).map(p => p.text || '').join('');
+    if (!raw) throw new Error('AI không trả lời (có thể bị chặn nội dung). Thử lại câu khác.');
+    const shown = takeProfile(raw);
+    hist.push({ role: 'model', text: shown });
+    store('gs_hist', hist.slice(-MAX_HIST));
+    wait.remove();
+    render(hist.at(-1));
+    speak(spoken(shown));
+  } catch (e) {
+    hist.pop(); // bỏ câu chưa được trả lời để lịch sử vẫn xen kẽ user/model
+    wait.className = 'cmd';
+    wait.textContent = '⚠️ ' + (/quota|429/i.test(e.message) ? 'Hết lượt free hôm nay hoặc gửi quá nhanh, chờ một lát.' : e.message);
+  } finally { busy = false; }
+}
+
+// Nhận giọng nói (Chrome Android / Edge). Trình duyệt không hỗ trợ thì ẩn nút.
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (SR) {
+  const rec = new SR();
+  rec.lang = 'en-US'; rec.interimResults = false;
+  rec.onresult = e => send(e.results[0][0].transcript);
+  rec.onend = () => $('#mic').classList.remove('on');
+  rec.onerror = e => { if (e.error !== 'no-speech' && e.error !== 'aborted') render({ role: 'user', text: '[mic: ' + e.error + ']' }).className = 'cmd'; };
+  $('#mic').onclick = () => {
+    if ($('#mic').classList.contains('on')) return rec.stop();
+    speechSynthesis?.cancel();
+    $('#mic').classList.add('on'); rec.start();
+  };
+} else $('#mic').hidden = true;
+
+$('#send').onclick = () => { send($('#text').value); $('#text').value = ''; };
+$('#text').onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#send').click(); } };
+document.querySelectorAll('#modes button').forEach(b => b.onclick = () => send(`[${b.dataset.cmd}]`));
+
+$('#openSet').onclick = () => { $('#key').value = key; $('#model').value = model; $('#set').showModal(); };
+$('#save').onclick = () => {
+  key = $('#key').value.trim(); model = $('#model').value.trim() || 'gemini-flash-latest';
+  store('gs_key', key); store('gs_model', model); $('#set').close();
+};
+$('#reset').onclick = () => {
+  if (!confirm('Xoá trình độ, điểm yếu và lịch sử học?')) return;
+  profile = { level: '', weak: [], note: '' }; hist = [];
+  store('gs_profile', profile); store('gs_hist', hist);
+  $('#chat').innerHTML = ''; showLevel(); $('#set').close();
+};
+
+showLevel();
+hist.forEach(render);
+if (!hist.length) render({ role: 'model', text: 'Chào bạn! Mình là gia sư tiếng Anh của bạn.\nBấm "📝 Đo trình độ" để mình biết bạn đang ở level nào, rồi mình dạy theo đúng level đó.\n🗣 Let\'s start!' });
+if (!key) $('#set').showModal();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
