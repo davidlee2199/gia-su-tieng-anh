@@ -351,7 +351,8 @@ function speak(t) {
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(t);
   u.lang = 'en-US'; u.rate = 0.95;
-  const v = speechSynthesis.getVoices().find(v => v.lang === 'en-US') || speechSynthesis.getVoices().find(v => v.lang.startsWith('en'));
+  const vs = speechSynthesis.getVoices(), lang = v => v.lang.replace('_', '-'); // Chrome Android ghi en_US
+  const v = vs.find(v => lang(v) === 'en-US') || vs.find(v => lang(v).startsWith('en'));
   if (v) u.voice = v;
   speechSynthesis.speak(u);
 }
