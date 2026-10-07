@@ -61,7 +61,7 @@
 <dialog id="set">
   <h3 style="margin:0">Cài đặt</h3>
   <label for="key">Khoá Gemini API (miễn phí)</label>
-  <input id="key" type="password" autocomplete="off" placeholder="AIza…">
+  <input id="key" type="password" autocomplete="off" placeholder="Dán khoá vào đây">
   <p class="hint">Lấy khoá free tại <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a>. Khoá chỉ lưu trên máy này.</p>
   <label for="model">Model</label>
   <input id="model">
@@ -169,15 +169,22 @@ async function send(text) {
   render(hist.at(-1));
   const wait = render({ role: 'model', text: '…' });
   try {
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: systemPrompt() }] },
-        contents: hist.slice(-MAX_HIST).map(m => ({ role: m.role, parts: [{ text: m.text }] })),
-      }),
+    const body = JSON.stringify({
+      system_instruction: { parts: [{ text: systemPrompt() }] },
+      contents: hist.slice(-MAX_HIST).map(m => ({ role: m.role, parts: [{ text: m.text }] })),
     });
-    const data = await r.json();
+    let r, data;
+    // Gói free hay bị 503 "quá tải" chốc lát: tự gọi lại tối đa 4 lần, chờ 2-4-8s.
+    for (let i = 0; i < 5; i++) {
+      r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body,
+      });
+      data = await r.json();
+      if (r.status !== 503 && r.status !== 500) break;
+      wait.textContent = `… Google đang quá tải, thử lại (${i + 1}/4)`;
+      if (i < 4) await new Promise(ok => setTimeout(ok, 2000 * 2 ** Math.min(i, 2)));
+    }
+    if (r.status === 503) throw new Error('Google đang quá tải, bấm gửi lại sau ít phút.');
     if (!r.ok) throw new Error(data.error?.message || r.status);
     const raw = (data.candidates?.[0]?.content?.parts || []).filter(p => !p.thought).map(p => p.text || '').join('');
     if (!raw) throw new Error('AI không trả lời (có thể bị chặn nội dung). Thử lại câu khác.');
