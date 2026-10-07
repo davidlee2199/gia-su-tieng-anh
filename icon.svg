@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff4f8b"/>
+      <stop offset="1" stop-color="#6d28d9"/>
+    </linearGradient>
+    <linearGradient id="hair" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5a3325"/>
+      <stop offset="1" stop-color="#1f0f0b"/>
+    </linearGradient>
+    <linearGradient id="lip" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e0123a"/>
+      <stop offset="1" stop-color="#a10a2a"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <circle cx="420" cy="92" r="120" fill="#fff" opacity=".08"/>
+  <!-- tóc sau, uốn sóng -->
+  <path d="M132 236 C112 140 178 82 258 84 C340 86 400 146 382 240 C374 300 404 330 396 380 C390 420 414 450 400 512 L112 512 C98 452 124 420 116 380 C108 330 140 300 132 236 Z" fill="url(#hair)"/>
+  <!-- cổ & vai -->
+  <path d="M228 326 L284 326 L290 386 L222 386 Z" fill="#f1c2a3"/>
+  <path d="M150 512 C156 430 200 392 256 388 C312 392 356 430 362 512 Z" fill="#f1c2a3"/>
+  <!-- áo đen cổ yếm -->
+  <path d="M176 512 C186 462 214 440 236 436 L256 470 L276 436 C298 440 326 462 336 512 Z" fill="#111"/>
+  <path d="M236 436 L230 392 M276 436 L282 392" stroke="#111" stroke-width="7" stroke-linecap="round"/>
+  <!-- lọn tóc trước vai -->
+  <path d="M150 300 C126 360 168 400 146 470 C176 430 150 380 176 330 Z" fill="url(#hair)"/>
+  <path d="M362 300 C388 360 346 400 368 470 C338 430 362 380 336 330 Z" fill="url(#hair)"/>
+  <!-- mặt -->
+  <ellipse cx="256" cy="240" rx="92" ry="106" fill="#f8d2b8"/>
+  <!-- tóc mái rẽ ngôi -->
+  <path d="M164 236 C150 150 210 112 270 118 C330 124 364 176 348 250 C340 196 312 158 270 150 C246 178 206 196 164 236 Z" fill="url(#hair)"/>
+  <!-- lông mày cong -->
+  <path d="M200 206 Q222 194 244 204" stroke="#2a150f" stroke-width="5.5" fill="none" stroke-linecap="round"/>
+  <path d="M270 202 Q294 190 316 204" stroke="#2a150f" stroke-width="5.5" fill="none" stroke-linecap="round"/>
+  <!-- mắt trái mở, kẻ mắt đuôi mèo -->
+  <ellipse cx="222" cy="240" rx="14" ry="15" fill="#2a150f"/>
+  <circle cx="227" cy="235" r="4.5" fill="#fff"/>
+  <path d="M202 232 Q222 220 244 232 L254 224" stroke="#111" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- mắt phải nháy -->
+  <path d="M272 242 Q292 254 312 240" stroke="#111" stroke-width="5.5" fill="none" stroke-linecap="round"/>
+  <path d="M312 240 L322 232 M302 247 L308 256 M290 250 L292 260" stroke="#111" stroke-width="3.5" stroke-linecap="round"/>
+  <!-- má -->
+  <ellipse cx="200" cy="278" rx="18" ry="10" fill="#ff6f91" opacity=".45"/>
+  <ellipse cx="314" cy="278" rx="18" ry="10" fill="#ff6f91" opacity=".45"/>
+  <!-- mũi -->
+  <path d="M256 258 Q262 272 252 276" stroke="#d39a7c" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  <!-- môi đỏ cười nửa miệng -->
+  <path d="M226 298 Q244 290 256 296 Q270 288 290 294 Q272 322 252 320 Q234 318 226 298 Z" fill="url(#lip)"/>
+  <path d="M228 299 Q258 306 289 295" stroke="#7a0820" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <ellipse cx="262" cy="310" rx="8" ry="3" fill="#fff" opacity=".35"/>
+  <!-- nốt ruồi duyên -->
+  <circle cx="300" cy="306" r="2.6" fill="#5a3325"/>
+  <!-- khuyên tai vàng -->
+  <circle cx="156" cy="304" r="14" fill="none" stroke="#fbbf24" stroke-width="5"/>
+  <circle cx="356" cy="304" r="14" fill="none" stroke="#fbbf24" stroke-width="5"/>
+</svg>
