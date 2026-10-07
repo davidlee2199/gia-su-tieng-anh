@@ -1,7 +1,8 @@
 # Chuyển nhân vật VRoid (.vrm) sang GLB dùng được với TalkingHead (khẩu hình ARKit + Oculus).
 # Cần: Blender 4.2+ có add-on "VRM format"; tải cùng thư mục: talkinghead-addon.py (blender/MPFB),
 # rename-vroid-bones.py, build-vroid-eyes.py, build-vroid-shapekeys.py (blender/VRoid) từ met4citizen/TalkingHead (MIT).
-# Chạy: blender -b --python vroid-to-talkinghead.py -- <thư mục script> <file.vrm> <out.glb>
+# Ảnh màu đã chỉnh đặt ở <thư mục>/tex2/<tên ảnh>.png (tạo bằng tools/tao-anh-mau-van-phong.py).
+# Chạy: blender -b --python vroid-to-talkinghead.py -- <thư mục> <file.vrm> <out.glb>
 import bpy, sys, runpy, os, importlib.util, addon_utils
 D, VRM, OUT = sys.argv[sys.argv.index('--') + 1:][:3]
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -38,10 +39,17 @@ def to_principled(mat):
     fac = list(m1.pbr_metallic_roughness.base_color_factor) if m1 else [1, 1, 1, 1]
     mode = m1.alpha_mode if m1 else 'OPAQUE'
     cutoff = m1.alpha_cutoff if m1 else 0.5
+    # Ảnh màu đã chỉnh sẵn (mắt hổ phách, vest đen sơ mi trắng, váy đen, son) nằm ở <D>/tex2/<tên ảnh>.png
+    if img:
+        rp = os.path.join(D, 'tex2', img.name.split('.')[0] + '.png')
+        if os.path.exists(rp): img = bpy.data.images.load(rp, check_existing=True); print('REPLACED', os.path.basename(rp))
+    # Tóc + lông mày đỏ rượu vang, bỏ kẹp tóc
+    if 'HAIR' in mat.name: fac = [0.147, 0.0075, 0.0185, 1]  # #6B1525; hệ số glTF là màu TUYẾN TÍNH, không phải sRGB
+    if 'FaceBrow' in mat.name: fac = [0.0685, 0.0103, 0.0116, 1]  # #4A1A1C
     # Đổi đồng phục học sinh thành đồ thường: áo đen, bỏ nơ; da ấm hơn
     if 'Tops' in mat.name: fac = [0.09, 0.07, 0.08, 1]
     if 'SKIN' in mat.name: fac = [1.0, 0.93, 0.87, 1]
-    hide = 'Accessory' in mat.name
+    hide = 'Accessory' in mat.name or 'Hair_00_HAIR_02' in mat.name
     nt.nodes.clear()
     out = nt.nodes.new('ShaderNodeOutputMaterial'); bsdf = nt.nodes.new('ShaderNodeBsdfPrincipled')
     bsdf.inputs['Metallic'].default_value = 0.0; bsdf.inputs['Roughness'].default_value = 0.85

@@ -693,7 +693,7 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catc
 import { TalkingHead } from 'talkinghead';
 import { HeadAudio } from 'https://cdn.jsdelivr.net/gh/met4citizen/HeadAudio@main/dist/headaudio.min.mjs';
 const HA = 'https://cdn.jsdelivr.net/gh/met4citizen/HeadAudio@main/dist/';
-const GLB = 'sam.glb'; // VRoid mẫu Sendagaya Shino (CC0), chuyển bằng tools/vroid-to-talkinghead.py
+const GLB = 'sam.glb'; // VRoid mẫu Sendagaya Shino (CC0) chỉnh kiểu văn phòng: tools/tao-anh-mau-van-phong.py + vroid-to-talkinghead.py
 let head = null, ha = null, loading = null;
 
 // PCM 16-bit 24 kHz (Gemini) → tần số của AudioContext (thường 48 kHz), nội suy tuyến tính.
@@ -718,7 +718,7 @@ window.Avatar = {
       head = new TalkingHead(node, { lipsyncModules: [], cameraView: 'head', cameraDistance: 1.0, cameraY: 0.7, modelFPS: 30, // đầu anime to: lùi xa + nâng mặt lên trên phụ đề
         avatarIdleEyeContact: 0.9, avatarSpeakingEyeContact: 0.9, avatarIdleHeadMove: 0.3, avatarSpeakingHeadMove: 0.4,
         modelPixelRatio: Math.min(1, 1.5 / devicePixelRatio), avatarMood: 'happy' }); // Redmi dpr 2.75: vẽ full nét 14 fps, nét 1.5 thì 60 fps
-      await head.showAvatar({ url: GLB, body: 'F', avatarMood: 'happy', lipsyncLang: 'en', baseline: { headRotateX: -0.1, eyeBlinkLeft: 0.05, eyeBlinkRight: 0.05 } });
+      await head.showAvatar({ url: GLB, body: 'F', avatarMood: 'happy', lipsyncLang: 'en', baseline: { headRotateX: -0.1, eyeBlinkLeft: 0.3, eyeBlinkRight: 0.3 } }); // mi khép hờ: ánh nhìn lim dim
       node.classList.add('ready'); document.getElementById('call').classList.add('has3d');
       return true;
     })().catch(e => { console.warn('avatar', e); loading = null; return false; });
