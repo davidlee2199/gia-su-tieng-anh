@@ -194,6 +194,7 @@ export function buildXianxia(scene) {
   BLOOM.uHoa.value = new THREE.TextureLoader().load('bg/hoa.png');
   env.userData.setSeason = k => { // mùa: thứ rơi quanh Sam + màu hoa trên tranh + ám màu tranh, đổi từ từ
     const S = SEASONS[k], pm = petals.material, o0 = petals.visible ? pm.opacity : 0, o1 = S.petal != null ? 1 : 0;
+    env.userData.setVideo?.(S.video);
     const c1 = S.petal != null ? new THREE.Color(S.petal) : pm.color.clone();
     if (o0 < .01) pm.color.copy(c1); // đang ẩn: đổi màu ngay rồi hiện dần
     const c0 = pm.color.clone();
@@ -237,7 +238,7 @@ export function buildXianxia(scene) {
 
 // Tranh tiên cảnh anime (David vẽ bằng Gemini Pro) dán lên vòm trụ quanh nhân vật để xoay 360°:
 // nửa sau lưng Sam là bản lật (nhìn từ trong vòm ảnh bị ngược), nửa kia là bản gốc → hai mép nối liền.
-// Có bg/tien-canh.mp4 (video lặp vòng làm từ chính tranh đó) thì phát video cho cảnh động; không có thì dùng ảnh.
+// Vòm nhận cả ảnh lẫn video (VideoTexture) — xem painting() bên dưới.
 const TINT = new THREE.Color(1, 1, 1); // ám màu thời tiết × mùa đang áp lên vòm
 function dome(env, tex, w, h) {
   const R = 600, H = Math.PI * R * h / w; // giữ đúng tỉ lệ khung trên nửa vòng
@@ -264,7 +265,7 @@ function dome(env, tex, w, h) {
   return g;
 }
 
-// Ngày / chiều / đêm: mỗi buổi một tranh (bg/<buổi>.jpg), có video bg/<buổi>.mp4 thì phát video cho cảnh động.
+// Ngày / chiều / đêm: mỗi buổi một tranh tĩnh bg/<buổi>.jpg (dự phòng khi chưa có video mùa).
 // Ánh sáng chiếu lên Sam đổi theo buổi để hợp cảnh.
 export const PHASES = {
   ngay: { label: '☀️ Ngày', amb: 1.0, dir: 3.4, color: 0xffffff },
@@ -273,38 +274,50 @@ export const PHASES = {
 };
 export const phaseByClock = (h = new Date().getHours()) => h >= 6 && h < 16 ? 'ngay' : h >= 16 && h < 19 ? 'chieu' : 'dem';
 
+// Video động theo mùa (bg/v-<mùa>.mp4, cắt từ video David làm bằng Gemini, quay ban ngày) phủ lên tranh;
+// chưa tải xong hoặc mùa không có video thì dùng tranh tĩnh theo buổi (bg/<buổi>.jpg). Video gặp chiều/đêm thì ám màu theo buổi.
+const PHASE_MUL = { ngay: [1, 1, 1], chieu: [1, .88, .78], dem: [.32, .38, .62] };
 function painting(scene, env, far) {
-  const domes = {}; let cur = null;
+  const domes = {}; let cur = null, phase = null, vname = null;
   const hideFar = () => { far.forEach(o => { if (o.geometry?.type === 'SphereGeometry') o.renderOrder = -2; else o.visible = false; }); scene.fog = null; };
   const setOp = (g, a) => { g.userData.op = a; g.traverse(o => { if (o.isMesh) o.material.opacity = a; }); };
-  const show = name => { // tranh mới hiện dần đè lên tranh cũ, xong mới ẩn tranh cũ
-    const g = domes[name].group, from = g.userData.op ?? 0; g.visible = true;
-    for (const k in domes) domes[k].group.traverse(o => { if (o.isMesh) o.renderOrder = k === name ? -1 : -1.5; });
+  const show = key => { // cảnh mới hiện dần đè lên cảnh cũ, xong mới ẩn cảnh cũ
+    const g = domes[key].group, from = g.userData.op ?? 0; g.visible = true;
+    for (const k in domes) domes[k].group.traverse(o => { if (o.isMesh) o.renderOrder = k === key ? -1 : -1.5; });
     tween('phase', 2.5, x => {
       setOp(g, from + (1 - from) * x);
-      if (x >= 1 && g.children.length) for (const k in domes) if (k !== name) { domes[k].group.visible = false; setOp(domes[k].group, 0); }
+      if (x >= 1) for (const k in domes) if (k !== key) { domes[k].group.visible = false; setOp(domes[k].group, 0); }
     });
   };
-  function load(name) {
-    if (domes[name]) return;
-    const d = domes[name] = { group: new THREE.Group() }; env.add(d.group);
+  const play = v => v.play().catch(() => document.addEventListener('pointerdown', () => v.play().catch(() => {}), { once: true }));
+  const pick = () => {
+    const k = vname && domes['v:' + vname]?.ready ? 'v:' + vname : 'p:' + phase;
+    if (!phase || k === cur) return;
+    cur = k; if (domes[k]?.ready) show(k);
+    for (const j in domes) { const v = domes[j].video; if (v) j === k ? play(v) : v.pause(); }
+    env.userData.videoOn = k[0] === 'v'; env.userData.retint?.();
+  };
+  const slot = key => { const d = domes[key] = { group: new THREE.Group() }; env.add(d.group); return d; };
+  function loadImg(name) {
+    const key = 'p:' + name; if (domes[key]) return; const d = slot(key);
     new THREE.TextureLoader().load(`bg/${name}.jpg`, tex => {
       tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
-      d.img = dome(d.group, tex, tex.image.width, tex.image.height); hideFar(); if (cur === name) show(name);
+      dome(d.group, tex, tex.image.width, tex.image.height); d.ready = true; hideFar(); if (cur === key) show(key);
     }, undefined, e => console.warn('tranh nền', name, e));
-    const v = document.createElement('video');
-    Object.assign(v, { src: `bg/${name}.mp4`, muted: true, loop: true, playsInline: true, crossOrigin: 'anonymous', preload: 'auto' });
+  }
+  function loadVid(name) {
+    const key = 'v:' + name; if (domes[key]) return; const d = slot(key), v = document.createElement('video');
+    Object.assign(v, { src: `bg/v-${name}.mp4`, muted: true, loop: true, playsInline: true, crossOrigin: 'anonymous', preload: 'auto' });
     v.setAttribute('playsinline', ''); v.setAttribute('muted', '');
     v.addEventListener('loadeddata', () => {
       const tex = new THREE.VideoTexture(v); tex.colorSpace = THREE.SRGBColorSpace;
-      dome(d.group, tex, v.videoWidth, v.videoHeight); if (d.img) d.img.visible = false; hideFar();
-      d.video = v; if (cur === name) v.play().catch(() => document.addEventListener('pointerdown', () => v.play().catch(() => {}), { once: true }));
+      dome(d.group, tex, v.videoWidth, v.videoHeight); d.video = v; d.ready = true; hideFar(); pick();
     }, { once: true });
-    v.addEventListener('error', () => {}, { once: true }); // chưa có video buổi này: dùng ảnh
+    v.addEventListener('error', e => console.warn('video nền', name, e), { once: true }); // lỗi thì cứ dùng tranh tĩnh
   }
+  env.userData.setVideo = name => { vname = name; if (name) loadVid(name); pick(); };
   env.userData.setPhase = name => {
-    cur = name; load(name); show(name);
-    for (const k in domes) { const v = domes[k].video; if (v) k === name ? v.play().catch(() => {}) : v.pause(); }
+    phase = env.userData.phase = name; loadImg(name); pick(); env.userData.retint?.();
     const P = PHASES[name], to = new THREE.Color(P.color), ls = [];
     scene.traverse(o => { if (o.isAmbientLight) ls.push([o, o.intensity, P.amb]); if (o.isDirectionalLight) ls.push([o, o.intensity, P.dir, o.color.clone()]); });
     tween('light', 2.5, x => ls.forEach(([o, a, b, c]) => { o.intensity = a + (b - a) * x; if (c) o.color.lerpColors(c, to, x); }));
@@ -321,14 +334,14 @@ export const REGIONS = {
   hue: ['Huế', 16.46, 107.59, 'trung'], dng: ['Đà Nẵng', 16.05, 108.2, 'trung'], nt: ['Nha Trang', 12.24, 109.19, 'trung'],
   dl: ['Đà Lạt', 11.94, 108.44, 'nam'], hcm: ['TP.HCM', 10.78, 106.7, 'nam'], ct: ['Cần Thơ', 10.03, 105.78, 'nam'], pq: ['Phú Quốc', 10.22, 103.96, 'nam'],
 };
-// petal = màu thứ rơi quanh Sam (null = không rơi), tint = ám màu tranh nền, bloom = màu tán hoa trên tranh (tối, sáng)
+// petal = màu thứ rơi quanh Sam (null = không rơi), tint = ám màu tranh nền, bloom = màu tán hoa trên tranh (tối, sáng), video = bg/v-<video>.mp4
 export const SEASONS = {
-  xuan: { label: '🌸 Xuân', petal: 0xffb8cc, tint: [1, .97, .98], bloom: null },
-  ha: { label: '🌺 Hạ', petal: 0xff4a30, tint: [1, 1, .94], bloom: [0x8a1408, 0xff7a4a] },      // hoa phượng
-  thu: { label: '🍂 Thu', petal: 0xffa040, tint: [1, .9, .78], bloom: [0x8a3a05, 0xffc060] },     // lá vàng
-  dong: { label: '🧣 Đông', petal: null, tint: [.86, .91, 1], bloom: [0x7c8798, 0xffffff] }, // tán phủ sương trắng
-  kho: { label: '🌼 Mùa khô', petal: 0xffd84a, tint: [1, .96, .88], bloom: [0x9a6a00, 0xfff07a] }, // hoa mai vàng
-  mua: { label: '🌿 Mùa mưa', petal: 0x7fd07a, tint: [.93, 1, .95], bloom: [0x1f5a1a, 0x9ee07a] },  // lá xanh
+  xuan: { label: '🌸 Xuân', petal: 0xffb8cc, tint: [1, .97, .98], bloom: null, video: 'xuan' },
+  ha: { label: '🌺 Hạ', petal: 0xff4a30, tint: [1, 1, .94], bloom: [0x8a1408, 0xff7a4a], video: 'ha' },      // hoa phượng
+  thu: { label: '🍂 Thu', petal: 0xffa040, tint: [1, .9, .78], bloom: [0x8a3a05, 0xffc060], video: 'thu' },     // lá vàng
+  dong: { label: '🧣 Đông', petal: null, tint: [.86, .91, 1], bloom: [0x7c8798, 0xffffff], video: 'dong' }, // tán phủ sương trắng
+  kho: { label: '🌼 Mùa khô', petal: 0xffd84a, tint: [1, .96, .88], bloom: [0x9a6a00, 0xfff07a], video: 'xuan' }, // hoa mai vàng
+  mua: { label: '🌿 Mùa mưa', petal: 0x7fd07a, tint: [.93, 1, .95], bloom: [0x1f5a1a, 0x9ee07a], video: 'ha' },  // lá xanh
 };
 export function seasonOf(region, m = new Date().getMonth() + 1) {
   const z = REGIONS[region]?.[3] || 'nam';
@@ -390,7 +403,9 @@ export function setupWeather(scene, env) {
   env.userData.retint = () => {
     const dim = { quang: 1, mua: .72, bao: .55, tuyet: .9, suong: .8 }[kind];
     const tint = { quang: 0xffffff, mua: 0xc8d2e6, bao: 0xa9b3cc, tuyet: 0xe6eeff, suong: 0xe8e6ee }[kind];
-    const to = new THREE.Color(tint).multiplyScalar(dim).multiply(env.userData.seasonTint), from = TINT.clone();
+    // tranh tĩnh: ám màu mùa · video: đã đúng mùa, chỉ ám màu theo buổi (video quay ban ngày)
+    const by = env.userData.videoOn ? new THREE.Color(...PHASE_MUL[env.userData.phase || 'ngay']) : env.userData.seasonTint;
+    const to = new THREE.Color(tint).multiplyScalar(dim).multiply(by), from = TINT.clone();
     tween('tint', 2.5, x => { TINT.lerpColors(from, to, x); domes().forEach(m => m.material.color.copy(TINT)); });
   };
   let mistO = 0;
