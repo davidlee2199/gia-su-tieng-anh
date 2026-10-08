@@ -627,6 +627,8 @@ async function callStart(firstText) {
   try { L.wake = await navigator.wakeLock?.request('screen'); } catch {}
 }
 
+// Chữ Trung/Nhật/Hàn/Thái/Nga/Ả Rập… trong lời Sam = lạc tiếng (giọng Anh lơ lớ bị nhận nhầm) → cắt tiếng, nhắc nói lại bằng tiếng Anh
+const FOREIGN = /[\u0400-\u04FF\u0600-\u06FF\u0900-\u097F\u0E00-\u0E7F\u3040-\u30FF\u3400-\u9FFF\uAC00-\uD7AF]/;
 function onLive(L, m, firstText) {
   if (live !== L) return;
   if (m.setupComplete) {
@@ -646,9 +648,16 @@ function onLive(L, m, firstText) {
   if (m.goAway) $('#callStatus').textContent = 'Phiên gọi sắp hết giờ, lát nữa bấm Gọi lại nhé.';
   const sc = m.serverContent; if (!sc) return;
   if (sc.inputTranscription?.text) { L.inT += sc.inputTranscription.text; $('#callYou').textContent = 'Bạn: ' + L.inT.trim(); window.Avatar?.listen(); }
-  if (sc.outputTranscription?.text) { L.outT += sc.outputTranscription.text; $('#callSam').textContent = 'Sam: ' + L.outT.trim(); window.Avatar?.react(L.outT); }
-  for (const p of sc.modelTurn?.parts || []) if (p.inlineData?.data) playPcm(L, p.inlineData.data);
+  if (sc.outputTranscription?.text) {
+    if (FOREIGN.test(sc.outputTranscription.text) && !L.mute) {
+      L.mute = true; L.outT = ''; stopPlayback(L);
+      L.ws.send(JSON.stringify({ clientContent: { turns: [{ role: 'user', parts: [{ text: '(You slipped into another language. I only speak English and Vietnamese. Say that again in English — or in Vietnamese if I was speaking Vietnamese.)' }] }], turnComplete: true } }));
+    }
+    if (!L.mute) { L.outT += sc.outputTranscription.text; $('#callSam').textContent = 'Sam: ' + L.outT.trim(); window.Avatar?.react(L.outT); }
+  }
+  for (const p of sc.modelTurn?.parts || []) if (p.inlineData?.data && !L.mute) playPcm(L, p.inlineData.data);
   if (sc.interrupted) stopPlayback(L);
+  if (sc.interrupted || sc.turnComplete) L.mute = false;
   if (sc.turnComplete && window.Avatar?.active) { Avatar.mood(L.outT); Avatar.end(); Avatar.newTurn(); }
   if (sc.turnComplete || sc.interrupted) flush(L);
 }
