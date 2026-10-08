@@ -1,125 +1,199 @@
-// Cảnh tiên hiệp dựng hoàn toàn bằng code (không ảnh, không tải thêm): trời hoàng hôn, núi đá dựng đứng mờ sương,
-// biển mây, lầu các trên đỉnh núi, đèn lồng bay lên, hoa đào rơi, đài ngọc dưới chân nhân vật.
-// Vật liệu Basic (không ăn đèn) để không làm đổi màu nhân vật; ít đa giác cho điện thoại.
+// Tiên cảnh kiểu anime / tranh thủy mặc, dựng hoàn toàn bằng code (không ảnh, không tải thêm).
+// Tô màu phẳng (MeshBasic, không ăn đèn) cho hợp nhân vật VRoid tô kiểu toon.
+// Gồm: trời hoàng hôn, trăng, sao · 5 lớp núi nhạt dần vào sương · biển mây · đảo bay + thác nước + lầu các
+// · đài ngọc có lan can + cây hoa đào · hạc bay · đèn lồng · cánh hoa rơi. Xoay 360° chỗ nào cũng có cảnh.
 import * as THREE from 'three';
 
 const rnd = (a, b) => a + Math.random() * (b - a);
+const C = (h) => new THREE.Color(h);
+const basic = (o) => new THREE.MeshBasicMaterial({ fog: true, ...o });
 
-// Ảnh tròn mờ vẽ bằng canvas: dùng cho mây, ánh sáng đèn lồng, mặt trăng.
-function glowTex(inner, outer = 'rgba(255,255,255,0)', size = 128) {
-  const c = document.createElement('canvas'); c.width = c.height = size;
-  const g = c.getContext('2d'), gr = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-  gr.addColorStop(0, inner); gr.addColorStop(1, outer); g.fillStyle = gr; g.fillRect(0, 0, size, size);
+function canvasTex(w, h, draw) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
-function cloudTex() {
-  const s = 256, c = document.createElement('canvas'); c.width = c.height = s; const g = c.getContext('2d');
-  for (let i = 0; i < 14; i++) {
-    const x = rnd(60, 196), y = rnd(100, 160), r = rnd(30, 70), gr = g.createRadialGradient(x, y, 0, x, y, r);
-    gr.addColorStop(0, 'rgba(255,255,255,0.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, s, s);
-  }
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
-}
+const glow = (inner, size = 128) => canvasTex(size, size, (g, w) => {
+  const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, inner); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, w, w);
+});
 
+// Trời: gradient anime + sao (shader, luôn phía sau)
 function sky() {
-  return new THREE.Mesh(new THREE.SphereGeometry(900, 32, 16), new THREE.ShaderMaterial({
+  return new THREE.Mesh(new THREE.SphereGeometry(900, 48, 24), new THREE.ShaderMaterial({
     side: THREE.BackSide, depthWrite: false, fog: false,
     vertexShader: 'varying vec3 p; void main(){ p = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: `varying vec3 p; void main(){
-      float h = p.y;
-      vec3 top = vec3(.16,.10,.34), mid = vec3(.93,.62,.66), low = vec3(1.,.86,.66);
-      vec3 c = h > 0. ? mix(mid, top, smoothstep(0., .55, h)) : mix(mid, low, smoothstep(0., -.3, h));
-      gl_FragColor = vec4(c, 1.); }`,
+    fragmentShader: `varying vec3 p;
+      float hash(vec3 q){ return fract(sin(dot(q, vec3(12.9898,78.233,37.719))) * 43758.5453); }
+      void main(){
+        float h = p.y;
+        vec3 top = vec3(.10,.10,.32), mid = vec3(.55,.42,.78), hor = vec3(1.0,.70,.62), low = vec3(.98,.82,.80);
+        vec3 c = h > .0 ? mix(hor, mid, smoothstep(.0,.22,h)) : mix(hor, low, smoothstep(.0,-.25,h));
+        c = h > .22 ? mix(mid, top, smoothstep(.22,.75,h)) : c;
+        vec3 q = floor(p * 260.);
+        c += step(.9965, hash(q)) * smoothstep(.25,.6,h) * vec3(1.,.95,.9);
+        gl_FragColor = vec4(c, 1.); }`,
   }));
 }
 
-// Cột đá kiểu Trương Gia Giới: trụ nhiều cạnh, mép gồ ghề, đỉnh có cụm cây xanh.
-function pillar(h, r) {
-  const geo = new THREE.CylinderGeometry(r * rnd(.55, .8), r, h, 7, 6);
-  const pos = geo.attributes.position, col = [];
-  for (let i = 0; i < pos.count; i++) {
-    const y = pos.getY(i), k = 1 + rnd(-.18, .18);
-    pos.setX(i, pos.getX(i) * k); pos.setZ(i, pos.getZ(i) * k);
-    const t = (y + h / 2) / h; // 0 chân, 1 đỉnh: chân nhạt vào sương, đỉnh đậm
-    col.push(.20 - .10 * t, .26 - .10 * t, .30 - .08 * t);
+// Một vòng núi răng cưa quanh tâm: mép trên nhấp nhô, đậm ở đỉnh nhạt dần xuống chân (như tranh thủy mặc).
+function ridgeRing(radius, base, height, jag, topColor, footColor, seed) {
+  const N = 220, pos = [], col = [], idx = [];
+  const tc = C(topColor), fc = C(footColor);
+  for (let i = 0; i <= N; i++) {
+    const a = i / N * Math.PI * 2;
+    let n = 0; for (let k = 1; k <= 5; k++) n += Math.sin(a * (k * 3 + seed) + seed * k * 1.7) / k;
+    n = Math.pow(Math.abs(n) / 1.6, 1.4);
+    const peak = Math.pow(Math.abs(Math.sin(a * (9 + seed) + seed)), 6) * jag;
+    const top = base + height * (0.35 + n) + peak;
+    const x = Math.cos(a) * radius, z = Math.sin(a) * radius;
+    pos.push(x, base - 40, z, x, top, z);
+    col.push(fc.r, fc.g, fc.b, tc.r, tc.g, tc.b);
+    if (i < N) { const j = i * 2; idx.push(j, j + 1, j + 2, j + 1, j + 3, j + 2); }
   }
-  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); geo.computeVertexNormals();
-  const g = new THREE.Group(), m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true }));
-  m.position.y = h / 2; g.add(m);
-  const tree = new THREE.Mesh(new THREE.ConeGeometry(r * .7, r * .9, 6), new THREE.MeshBasicMaterial({ color: 0x2f5d4a }));
-  tree.position.y = h + r * .35; g.add(tree);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx);
+  return new THREE.Mesh(g, basic({ vertexColors: true, side: THREE.DoubleSide, fog: false }));
+}
+
+// Lầu các: 3 tầng, cột đỏ son, mái ngói chàm, viền + chóp vàng
+function pavilion(s) {
+  const g = new THREE.Group(), red = basic({ color: 0xb8323a }), roof = basic({ color: 0x23283b, side: THREE.DoubleSide }), gold = basic({ color: 0xe6c260 }), stone = basic({ color: 0xd9d2c4 });
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(s * .95, s * 1.05, s * .18, 8), stone); base.position.y = s * .09; g.add(base);
+  for (let t = 0; t < 3; t++) {
+    const w = s * (0.8 - t * 0.18), y = s * (0.18 + t * 0.62);
+    for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; const p = new THREE.Mesh(new THREE.CylinderGeometry(s * .035, s * .035, s * .42, 6), red); p.position.set(Math.cos(a) * w * .8, y + s * .21, Math.sin(a) * w * .8); g.add(p); }
+    const r1 = new THREE.Mesh(new THREE.ConeGeometry(w * 1.35, s * .32, 8, 1, true), roof); r1.position.y = y + s * .56; g.add(r1);
+    const lip = new THREE.Mesh(new THREE.TorusGeometry(w * 1.3, s * .03, 4, 8), gold); lip.rotation.x = Math.PI / 2; lip.position.y = y + s * .41; g.add(lip);
+  }
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(s * .06, s * .45, 6), gold); tip.position.y = s * 2.3; g.add(tip);
   return g;
 }
 
-// Lầu các 3 tầng mái cong đỏ son.
-function pagoda(s) {
-  const g = new THREE.Group(), wall = new THREE.MeshBasicMaterial({ color: 0x8a2a2a }), roof = new THREE.MeshBasicMaterial({ color: 0x2b1b24 });
-  for (let i = 0; i < 3; i++) {
-    const w = s * (1 - i * .22), y = i * s * .55;
-    const b = new THREE.Mesh(new THREE.BoxGeometry(w * .7, s * .35, w * .7), wall); b.position.y = y + s * .17; g.add(b);
-    const r = new THREE.Mesh(new THREE.ConeGeometry(w * .75, s * .28, 4), roof); r.rotation.y = Math.PI / 4; r.position.y = y + s * .48; g.add(r);
+// Đảo bay: khối đá ngược + mặt cỏ + cây + thác nước rơi xuống mây
+function island(r, waterTex) {
+  const g = new THREE.Group();
+  const rock = new THREE.ConeGeometry(r, r * 1.8, 9, 3); rock.rotateX(Math.PI);
+  const p = rock.attributes.position; for (let i = 0; i < p.count; i++) { if (p.getY(i) < r * .85) { p.setX(i, p.getX(i) * rnd(.8, 1.2)); p.setZ(i, p.getZ(i) * rnd(.8, 1.2)); } }
+  const rm = new THREE.Mesh(rock, basic({ color: 0x6b6478 })); rm.position.y = -r * .9; g.add(rm);
+  g.add(new THREE.Mesh(new THREE.CylinderGeometry(r * 1.02, r * .98, r * .18, 9), basic({ color: 0x7fb88a })));
+  for (let i = 0; i < 5; i++) { const t = new THREE.Mesh(new THREE.ConeGeometry(r * .16, r * .5, 6), basic({ color: 0x3f7a5c })); const a = rnd(0, 6.28), d = rnd(.3, .8) * r; t.position.set(Math.cos(a) * d, r * .3, Math.sin(a) * d); g.add(t); }
+  const fall = new THREE.Mesh(new THREE.PlaneGeometry(r * .35, r * 4), basic({ map: waterTex, transparent: true, depthWrite: false, opacity: .85, side: THREE.DoubleSide }));
+  fall.position.set(r * .7, -r * 2, 0); fall.rotation.y = Math.PI / 2; g.add(fall);
+  return g;
+}
+
+// Cây hoa đào: thân cong + 4 cành, tán gồm nhiều chùm hoa nhỏ (nhìn gần không bị thô)
+function sakura() {
+  const g = new THREE.Group(), bark = basic({ color: 0x4a3036 });
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(.05, .1, 1.3, 7), bark); trunk.position.y = .65; trunk.rotation.z = .1; g.add(trunk);
+  const tips = [];
+  for (let i = 0; i < 4; i++) {
+    const a = i / 4 * Math.PI * 2 + .4, len = rnd(.55, .8);
+    const br = new THREE.Mesh(new THREE.CylinderGeometry(.018, .04, len, 5), bark);
+    const dir = new THREE.Vector3(Math.cos(a) * .8, 1, Math.sin(a) * .8).normalize();
+    br.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+    const base = new THREE.Vector3(.06, 1.2, 0); br.position.copy(base).addScaledVector(dir, len / 2); g.add(br);
+    tips.push(base.clone().addScaledVector(dir, len));
   }
-  const tip = new THREE.Mesh(new THREE.ConeGeometry(s * .05, s * .3, 6), new THREE.MeshBasicMaterial({ color: 0xd8b25a })); tip.position.y = s * 1.75; g.add(tip);
+  const pinks = [0xffc7da, 0xffaecb, 0xffdbe7, 0xff98bd].map(c => basic({ color: c }));
+  for (let i = 0; i < 46; i++) {
+    const t = tips[i % tips.length];
+    const b = new THREE.Mesh(new THREE.IcosahedronGeometry(rnd(.07, .16), 1), pinks[i % 4]);
+    b.position.set(t.x + rnd(-.32, .32), t.y + rnd(-.18, .28), t.z + rnd(-.32, .32)); g.add(b);
+  }
+  return g;
+}
+
+// Hạc: hai cánh vỗ + thân
+function crane() {
+  const g = new THREE.Group(), m = basic({ color: 0xffffff, side: THREE.DoubleSide, fog: false });
+  const wing = new THREE.BufferGeometry(); wing.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 1.6, .15, -.3, 0, 0, -.6], 3));
+  const L = new THREE.Mesh(wing, m), R = new THREE.Mesh(wing, m); R.scale.x = -1; g.add(L, R);
+  const body = new THREE.Mesh(new THREE.ConeGeometry(.12, 1, 5), m); body.rotation.x = Math.PI / 2; body.position.z = -.2; g.add(body);
+  g.userData = { L, R };
   return g;
 }
 
 export function buildXianxia(scene) {
   const env = new THREE.Group(); env.name = 'xianxia'; scene.add(env);
-  scene.fog = new THREE.Fog(0xf0c3c4, 220, 900);
+  scene.fog = new THREE.Fog(0xf2c7c4, 60, 420);
   env.add(sky());
 
-  // Trăng lớn mờ ở chân trời
-  const moon = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex('rgba(255,244,220,1)', 'rgba(255,200,170,0)'), fog: false, depthWrite: false }));
-  moon.scale.set(160, 160, 1); moon.position.set(-200, 90, -520); env.add(moon);
+  const moon = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow('rgba(255,248,230,1)'), fog: false, depthWrite: false }));
+  moon.scale.set(150, 150, 1); moon.position.set(-160, 120, -560); env.add(moon);
+  const moonCore = new THREE.Mesh(new THREE.CircleGeometry(30, 48), basic({ color: 0xfff6e2, fog: false })); moonCore.position.set(-160, 120, -555); moonCore.lookAt(0, 0, 0); env.add(moonCore);
 
-  // Vòng núi đá quanh nhân vật (xoay 360 độ chỗ nào cũng thấy)
-  const tops = [];
-  for (let i = 0; i < 46; i++) {
-    const a = i / 46 * Math.PI * 2 + rnd(-.06, .06), d = rnd(70, 300), h = rnd(30, 95) * (d / 160), p = pillar(h, rnd(5, 13) * (d / 160));
-    p.position.set(Math.cos(a) * d, -30, Math.sin(a) * d); env.add(p); tops.push({ p, h, d });
+  // 5 lớp núi: xa nhạt (tím hồng), gần đậm (chàm)
+  [[700, -20, 120, 90, 0xb9a6cf, 0xf3cdc8], [560, -25, 100, 80, 0x9c87bd, 0xedc2c4], [430, -28, 85, 70, 0x7b6ba6, 0xe6b7c0],
+   [320, -30, 70, 55, 0x5a5488, 0xdcaabb], [230, -32, 55, 42, 0x3d3f6b, 0xcf9fb6]]
+    .forEach(([r, b, h, j, t, f], i) => env.add(ridgeRing(r, b, h, j, t, f, i * 2 + 1)));
+
+  // Biển mây phẳng kiểu anime
+  const cloudTex = canvasTex(256, 128, (g, w) => {
+    g.fillStyle = 'rgba(255,255,255,0.95)';
+    for (let i = 0; i < 9; i++) { g.beginPath(); g.arc(rnd(40, w - 40), rnd(60, 95), rnd(25, 45), 0, Math.PI * 2); g.fill(); }
+    g.fillRect(20, 85, w - 40, 40);
+  });
+  const clouds = [];
+  for (let i = 0; i < 70; i++) {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, transparent: true, depthWrite: false, opacity: rnd(.75, 1), color: C(i % 3 ? 0xfff3f3 : 0xffe1e6) }));
+    const a = rnd(0, Math.PI * 2), d = rnd(45, 260); s.position.set(Math.cos(a) * d, rnd(-30, -14), Math.sin(a) * d);
+    const k = rnd(30, 80); s.scale.set(k * 2, k, 1); s.userData.v = rnd(.3, 1.2); env.add(s); clouds.push(s);
   }
-  // Lầu các trên 3 đỉnh gần nhất
-  tops.sort((a, b) => a.d - b.d).slice(0, 3).forEach(({ p, h, d }) => { const q = pagoda(5.5 * d / 90); q.position.set(p.position.x, -30 + h + .2, p.position.z); env.add(q); });
 
-  // Biển mây dưới chân
-  const ct = cloudTex(), clouds = [];
-  for (let i = 0; i < 90; i++) {
-    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: ct, transparent: true, opacity: rnd(.45, .75), depthWrite: false, color: 0xfff1f0 }));
-    const a = rnd(0, Math.PI * 2), d = rnd(40, 320); s.position.set(Math.cos(a) * d, rnd(-28, -10), Math.sin(a) * d);
-    const k = rnd(40, 110); s.scale.set(k * 1.6, k, 1); s.userData.v = rnd(.05, .18); env.add(s); clouds.push(s);
-  }
+  // Thác nước: sọc trắng xanh trượt xuống
+  const water = canvasTex(32, 256, (g, w, h) => { for (let y = 0; y < h; y += 6) { g.fillStyle = `rgba(${200 + Math.random() * 55 | 0},240,255,${rnd(.3, .9)})`; g.fillRect(rnd(0, 8), y, rnd(14, 28), 4); } });
+  water.wrapT = THREE.RepeatWrapping;
 
-  const procCount = env.children.length; // trời, trăng, núi, lầu, mây vẽ tay: ẩn khi dùng ảnh chụp 360°
-  // Đài ngọc dưới chân nhân vật + vầng sáng
-  const jade = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.3, .18, 48), new THREE.MeshBasicMaterial({ color: 0x9fd6c2 }));
-  jade.position.y = -.09; env.add(jade);
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(1.2, .03, 8, 64), new THREE.MeshBasicMaterial({ color: 0xe9cf7a }));
-  rim.rotation.x = Math.PI / 2; rim.position.y = .005; env.add(rim);
-  const halo = new THREE.Mesh(new THREE.CircleGeometry(2.4, 48), new THREE.MeshBasicMaterial({ map: glowTex('rgba(170,255,225,0.55)'), transparent: true, depthWrite: false }));
-  halo.rotation.x = -Math.PI / 2; halo.position.y = -.2; env.add(halo);
+  // Đảo bay + lầu các
+  const isl = [];
+  [[-38, 6, -60, 7, true], [46, 14, -95, 9, true], [70, -2, 30, 6, false], [-65, 10, 45, 8, true], [10, 22, -150, 12, true]].forEach(([x, y, z, r, pav]) => {
+    const g = island(r, water); g.position.set(x, y, z); g.userData.y = y; env.add(g); isl.push(g);
+    if (pav) { const p = pavilion(r * .55); p.position.y = r * .09; g.add(p); }
+  });
+
+  // Đài ngọc + lan can đỏ + cây hoa đào cạnh Sam
+  const jade = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.75, .25, 48), basic({ color: 0xa8dcc8 })); jade.position.y = -.125; env.add(jade);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(1.62, .035, 6, 64), basic({ color: 0xe9cf7a })); rim.rotation.x = Math.PI / 2; rim.position.y = .005; env.add(rim);
+  const rail = basic({ color: 0xb8323a });
+  for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; if (Math.sin(a) > .35) continue; // chừa lối phía trước (phía máy quay, +Z)
+    const p = new THREE.Mesh(new THREE.CylinderGeometry(.03, .03, .45, 6), rail); p.position.set(Math.cos(a) * 1.55, .22, Math.sin(a) * 1.55); env.add(p); }
+  const tree = sakura(); tree.position.set(-2.2, -.1, -3.0); tree.scale.setScalar(1.5); env.add(tree);
+  const tree2 = sakura(); tree2.position.set(2.6, -.1, -3.6); tree2.scale.setScalar(1.3); tree2.rotation.y = 2; env.add(tree2);
+  const halo = new THREE.Mesh(new THREE.CircleGeometry(3.4, 48), basic({ map: glow('rgba(170,255,225,0.5)'), transparent: true, depthWrite: false })); halo.rotation.x = -Math.PI / 2; halo.position.y = -.3; env.add(halo);
+
+  // Hạc bay vòng
+  const cranes = [];
+  for (let i = 0; i < 6; i++) { const c = crane(); c.scale.setScalar(rnd(1.2, 2.2)); Object.assign(c.userData, { r: rnd(40, 110), h: rnd(12, 40), a: rnd(0, 6.28), v: rnd(.05, .12) }); env.add(c); cranes.push(c); }
 
   // Đèn lồng bay lên
-  const lt = glowTex('rgba(255,200,110,1)', 'rgba(255,120,40,0)'), lanterns = [];
-  for (let i = 0; i < 26; i++) {
-    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: lt, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
-    const a = rnd(0, Math.PI * 2), d = rnd(8, 90); s.position.set(Math.cos(a) * d, rnd(-6, 30), Math.sin(a) * d);
-    const k = rnd(.3, .9) * (1 + d / 30); s.scale.set(k, k * 1.3, 1); s.userData.v = rnd(.4, 1.2); env.add(s); lanterns.push(s);
+  const lt = glow('rgba(255,190,100,1)'), lanterns = [];
+  for (let i = 0; i < 22; i++) {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: lt, transparent: true, depthWrite: false, fog: false, color: 0xffb060 }));
+    const a = rnd(0, Math.PI * 2), d = rnd(14, 80); s.position.set(Math.cos(a) * d, rnd(-6, 30), Math.sin(a) * d);
+    const k = rnd(.3, .8) * (1 + d / 25); s.scale.set(k, k * 1.3, 1); s.userData.v = rnd(.4, 1.1); env.add(s); lanterns.push(s);
   }
 
-  // Hoa đào rơi quanh nhân vật
-  const N = 260, pp = new Float32Array(N * 3), drift = [];
+  // Cánh hoa đào rơi
+  const N = 240, pp = new Float32Array(N * 3), drift = [];
   for (let i = 0; i < N; i++) { pp[i * 3] = rnd(-6, 6); pp[i * 3 + 1] = rnd(-1, 5); pp[i * 3 + 2] = rnd(-6, 6); drift.push(rnd(0, 6.28)); }
   const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.BufferAttribute(pp, 3));
-  const petals = new THREE.Points(pg, new THREE.PointsMaterial({ map: glowTex('rgba(255,170,200,1)', 'rgba(255,170,200,0)', 32), size: .09, transparent: true, depthWrite: false, color: 0xffd0e0 }));
-  env.add(petals);
+  env.add(new THREE.Points(pg, new THREE.PointsMaterial({ map: glow('rgba(255,170,200,1)', 32), size: .09, transparent: true, depthWrite: false, color: 0xffd0e0 })));
 
   env.traverse(o => { if (o.material) o.material.toneMapped = false; });
-  env.userData.proc = env.children.slice(0, procCount); env.userData.fog = scene.fog;
+
   let last = performance.now();
   (function tick(now) {
-    const dt = Math.min(.05, (now - last) / 1000); last = now;
-    for (const c of clouds) { c.position.x += c.userData.v * dt; if (c.position.x > 320) c.position.x = -320; }
-    for (const l of lanterns) { l.position.y += l.userData.v * dt; if (l.position.y > 34) l.position.y = -6; }
+    const dt = Math.min(.05, (now - last) / 1000), t = now / 1000; last = now;
+    for (const c of clouds) { c.position.x += c.userData.v * dt; if (c.position.x > 260) c.position.x = -260; }
+    for (const l of lanterns) { l.position.y += l.userData.v * dt; if (l.position.y > 32) l.position.y = -6; }
+    isl.forEach((g, i) => { g.position.y = g.userData.y + Math.sin(t * .5 + i) * .8; });
+    water.offset.y = -t * .6;
+    for (const c of cranes) {
+      const u = c.userData; u.a += u.v * dt;
+      c.position.set(Math.cos(u.a) * u.r, u.h + Math.sin(t + u.r) * 2, Math.sin(u.a) * u.r);
+      c.rotation.y = -u.a; const f = Math.sin(t * 4 + u.r) * .5; u.L.rotation.z = f; u.R.rotation.z = -f;
+    }
     for (let i = 0; i < N; i++) {
       drift[i] += dt; pp[i * 3] += Math.sin(drift[i]) * .004; pp[i * 3 + 1] -= .25 * dt; pp[i * 3 + 2] += Math.cos(drift[i] * .7) * .003;
       if (pp[i * 3 + 1] < -.2) pp[i * 3 + 1] = 5;
@@ -128,23 +202,4 @@ export function buildXianxia(scene) {
     requestAnimationFrame(tick);
   })(last);
   return env;
-}
-
-// Ảnh chụp toàn cảnh 360° thật (Poly Haven, CC0). name = null thì quay về cảnh vẽ tay.
-// yaw: xoay ảnh để phần đẹp nhất nằm sau lưng nhân vật lúc nhìn chính diện.
-export const PANOS = [
-  { name: 'neurathen_rock_castle', label: 'Vách đá', yaw: 0.15 },
-  { name: 'misty_pines', label: 'Rừng sương', yaw: 0 },
-  { name: 'qwantani_dusk_2', label: 'Hoàng hôn', yaw: 2.6 },
-];
-const loaded = {};
-export async function setPanorama(scene, env, pano, base = '') {
-  if (!pano) {
-    scene.background = null; scene.fog = env.userData.fog;
-    env.userData.proc.forEach(o => o.visible = true); return;
-  }
-  const tex = loaded[pano.name] ||= await new THREE.TextureLoader().loadAsync(base + 'bg/' + pano.name + '.jpg');
-  tex.mapping = THREE.EquirectangularReflectionMapping; tex.colorSpace = THREE.SRGBColorSpace;
-  scene.background = tex; scene.backgroundRotation?.set(0, pano.yaw, 0); scene.backgroundIntensity = 1;
-  scene.fog = null; env.userData.proc.forEach(o => o.visible = false);
 }
