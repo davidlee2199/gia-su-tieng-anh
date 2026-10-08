@@ -1,4 +1,4 @@
-# Bản giữ nguyên màu/đồ của nhân vật tự nặn trong VRoid: bù tóc cho đèn PBR, da trắng hồng (DA), da mặt tools/texd/face-son.png (son + lỗ mũi + má hồng), sống mũi nâng MUI mét.
+# MAI=1.53 → mái ngang ở chân mày. Bản giữ nguyên màu/đồ của nhân vật tự nặn trong VRoid: bù tóc cho đèn PBR, da trắng hồng (DA), da mặt tools/texd/face-son.png (son + lỗ mũi + má hồng), sống mũi nâng MUI mét.
 # Chạy: blender -b --python convert.py -- <thư mục> <file.vrm> <out.glb>
 import bpy, sys, runpy, os, importlib.util, addon_utils
 D, VRM, OUT = sys.argv[sys.argv.index('--') + 1:][:3]
@@ -32,6 +32,33 @@ if fo and MUI > 0:
             if x: kb.data[i].co += dl * x
     for i, x in enumerate(ws):
         if x: fo.data.vertices[i].co += dl * x
+# Mái ngang: cắt phẳng các sợi tóc mái (rủ từ đỉnh đầu xuống trước mặt) ở độ cao MAI mét rồi bịt đầu cắt.
+# Đo trên nhân vật David: chân mày z 1.526–1.543, mái gốc rủ tới 1.48–1.51. Tóc mai 2 bên (|x| > 0.085) giữ nguyên.
+MAI = float(os.environ.get('MAI', '0'))
+ho = bpy.data.objects.get('Hair')
+if ho and MAI > 0:
+    import bmesh
+    from mathutils import Vector
+    mw = ho.matrix_world; inv = mw.inverted()
+    bm = bmesh.new(); bm.from_mesh(ho.data); bm.verts.ensure_lookup_table()
+    seen, geom = set(), set()
+    for v in bm.verts:
+        if v.index in seen: continue
+        st, comp = [v], []; seen.add(v.index)
+        while st:
+            x = st.pop(); comp.append(x)
+            for e in x.link_edges:
+                y = e.other_vert(x)
+                if y.index not in seen: seen.add(y.index); st.append(y)
+        ps = [mw @ x.co for x in comp]
+        if max(p.z for p in ps) > 1.62 and min(p.y for p in ps) < -0.04 and max(abs(p.x) for p in ps) < 0.085 and min(p.z for p in ps) < MAI:
+            geom.update(comp); geom.update(e for x in comp for e in x.link_edges); geom.update(f for x in comp for f in x.link_faces)
+    print('MAI strands verts', sum(1 for g in geom if isinstance(g, bmesh.types.BMVert)))
+    bmesh.ops.bisect_plane(bm, geom=list(geom), plane_co=inv @ Vector((0, 0, MAI)),
+                           plane_no=(inv.to_3x3() @ Vector((0, 0, 1))).normalized(), clear_inner=True)
+    cut = [e for e in bm.edges if e.is_boundary and all(abs((mw @ x.co).z - MAI) < 1e-4 for x in e.verts)]
+    print('MAI cut edges', len(cut), 'filled', len(bmesh.ops.holes_fill(bm, edges=cut, sides=0)['faces']))
+    bm.to_mesh(ho.data); bm.free()
 col = bpy.data.collections.get('Colliders')
 if col:
     def kill(c):

@@ -702,7 +702,7 @@ import { HeadAudio } from 'https://cdn.jsdelivr.net/gh/met4citizen/HeadAudio@mai
 import { buildXianxia, PHASES, phaseByClock, WEATHERS, realWeather, REGIONS, SEASONS, seasonOf } from './xianxia.mjs';
 import { playMocap, preloadMocap } from './mocap.mjs';
 const HA = 'https://cdn.jsdelivr.net/gh/met4citizen/HeadAudio@main/dist/';
-const GLB = 'sam.glb'; // nhân vật David tự nặn trong VRoid (tools/sam-david.vrm), chuyển bằng tools/vroid-to-talkinghead-giu-mau.py
+const GLB = 'sam.glb?v=mai-ngang'; // đổi ?v= mỗi lần xuất lại để điện thoại không giữ bản cũ · nhân vật David tự nặn trong VRoid (tools/sam-david.vrm), chuyển bằng tools/vroid-to-talkinghead-giu-mau.py
 let head = null, ha = null, loading = null;
 
 // PCM 16-bit 24 kHz (Gemini) → tần số của AudioContext (thường 48 kHz), nội suy tuyến tính.
