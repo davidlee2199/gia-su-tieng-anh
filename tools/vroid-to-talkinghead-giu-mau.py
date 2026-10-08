@@ -1,4 +1,4 @@
-# Bản giữ nguyên màu/đồ của nhân vật tự nặn trong VRoid (bù da/tóc cho đèn PBR, thay da mặt bằng tools/texd/face-son.png có son + lỗ mũi).
+# Bản giữ nguyên màu/đồ của nhân vật tự nặn trong VRoid: bù da/tóc cho đèn PBR, da mặt tools/texd/face-son.png (son + lỗ mũi), sống mũi nâng MUI mét (mặc định 0.005).
 # Chạy: blender -b --python convert.py -- <thư mục> <file.vrm> <out.glb>
 import bpy, sys, runpy, os, importlib.util, addon_utils
 D, VRM, OUT = sys.argv[sys.argv.index('--') + 1:][:3]
@@ -10,6 +10,28 @@ spec = importlib.util.spec_from_file_location('talkinghead_addon', os.path.join(
 th = importlib.util.module_from_spec(spec); spec.loader.exec_module(th); th.register()
 bpy.ops.import_scene.vrm(filepath=VRM)
 print('OBJECTS:', [(o.name, o.type) for o in bpy.data.objects][:40])
+# Sống mũi cao hơn: đẩy đoạn sống mũi (giữa 2 mắt -> sát đầu mũi) ra trước, giảm dần về 2 đầu và 2 bên.
+# Toạ độ đo trên nhân vật David (Z lên, mặt nhìn -Y): đầu mũi z~1.471, giữa 2 mắt z~1.505.
+import math
+MUI = float(os.environ.get('MUI', '0.005'))
+fo = bpy.data.objects.get('Face')
+if fo and MUI > 0:
+    print('FACE matrix identity', fo.matrix_world.is_identity)
+    def w(co):
+        if abs(co.x) > 0.02 or co.y > -0.055 or not (1.468 < co.z < 1.508): return 0.0
+        t = (co.z - 1.471) / (1.508 - 1.471)              # 0 ở đầu mũi, 1 ở giữa 2 mắt
+        prof = math.sin(math.pi * min(1, max(0, t))) ** 0.8  # nhô nhất ở giữa sống mũi
+        return prof * math.exp(-(co.x / 0.006) ** 2)
+    base = fo.data.shape_keys.key_blocks[0] if fo.data.shape_keys else None
+    from mathutils import Vector
+    mw = fo.matrix_world; dl = mw.inverted().to_3x3() @ Vector((0, -MUI, 0))  # đẩy ra trước theo hướng thật
+    ws = [w(mw @ v.co) for v in fo.data.vertices]
+    n = sum(1 for x in ws if x > 0.05); print('NOSE verts', n)
+    for kb in (fo.data.shape_keys.key_blocks if fo.data.shape_keys else []):
+        for i, x in enumerate(ws):
+            if x: kb.data[i].co += dl * x
+    for i, x in enumerate(ws):
+        if x: fo.data.vertices[i].co += dl * x
 col = bpy.data.collections.get('Colliders')
 if col:
     def kill(c):

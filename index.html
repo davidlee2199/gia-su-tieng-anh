@@ -715,7 +715,7 @@ window.Avatar = {
   init() {
     return loading ||= (async () => {
       const node = document.getElementById('avatar');
-      head = new TalkingHead(node, { lipsyncModules: [], cameraView: 'head', cameraDistance: 1.0, cameraY: 0.7, modelFPS: 30, // đầu anime to: lùi xa + nâng mặt lên trên phụ đề
+      head = new TalkingHead(node, { lipsyncModules: [], cameraView: 'mid', cameraDistance: -1.1, cameraY: 0.12, modelFPS: 30, // chân dung từ đầu tới đùi, thấy 2 tay; phụ đề đè phần chân
         avatarIdleEyeContact: 0.9, avatarSpeakingEyeContact: 0.9, avatarIdleHeadMove: 0.3, avatarSpeakingHeadMove: 0.4,
         lightAmbientIntensity: 0.9, lightDirectIntensity: 3, lightDirectColor: 0xffffff, // đèn mặc định (2/30) làm da trắng bệch, tóc hồng
         modelPixelRatio: Math.min(1, 1.5 / devicePixelRatio), avatarMood: 'happy' }); // Redmi dpr 2.75: vẽ full nét 14 fps, nét 1.5 thì 60 fps
@@ -737,6 +737,7 @@ window.Avatar = {
         head.opt.update = ha.update.bind(ha);
         head.audioSpeechGainNode.connect(ha);
       }
+      head.playGesture('handup', 2.5); // vẫy tay chào khi bắt máy
       return this.active = true;
     } catch (e) { console.warn('avatar stream', e); return this.active = false; }
   },
