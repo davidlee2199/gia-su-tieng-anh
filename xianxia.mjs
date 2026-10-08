@@ -8,6 +8,15 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 const C = (h) => new THREE.Color(h);
 const basic = (o) => new THREE.MeshBasicMaterial({ fog: true, ...o });
 
+// Chuyển cảnh mượt: mỗi khoá một tween (gọi lại cùng khoá thì thay tween cũ), chạy trong vòng tick của cảnh
+const tweens = new Map();
+function tween(key, sec, f) { tweens.set(key, { t0: performance.now(), sec, f }); }
+function runTweens(now) {
+  for (const [k, w] of tweens) { const x = Math.min(1, (now - w.t0) / (w.sec * 1000)); w.f(x * x * (3 - 2 * x)); if (x >= 1) tweens.delete(k); }
+}
+// Hoa đào trên tranh đổi màu theo mùa: bg/hoa.png = mặt nạ tán hoa (dựng từ tranh chiều, cùng bố cục với ngày/đêm)
+const BLOOM = { uHoa: { value: null }, uDark: { value: new THREE.Color() }, uLight: { value: new THREE.Color() }, uMix: { value: 0 } };
+
 function canvasTex(w, h, draw) {
   const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
@@ -182,8 +191,19 @@ export function buildXianxia(scene) {
   const petals = new THREE.Points(pg, new THREE.PointsMaterial({ map: glow('rgba(255,255,255,1)', 32), size: .09, transparent: true, depthWrite: false, color: 0xffb8cc }));
   env.add(petals);
   env.userData.seasonTint = new THREE.Color(1, 1, 1);
-  env.userData.setSeason = k => { // mùa: đổi thứ rơi quanh Sam + ám màu tranh nền
-    const S = SEASONS[k]; petals.visible = S.petal != null; if (S.petal != null) petals.material.color.set(S.petal);
+  BLOOM.uHoa.value = new THREE.TextureLoader().load('bg/hoa.png');
+  env.userData.setSeason = k => { // mùa: thứ rơi quanh Sam + màu hoa trên tranh + ám màu tranh, đổi từ từ
+    const S = SEASONS[k], pm = petals.material, o0 = petals.visible ? pm.opacity : 0, o1 = S.petal != null ? 1 : 0;
+    const c1 = S.petal != null ? new THREE.Color(S.petal) : pm.color.clone();
+    if (o0 < .01) pm.color.copy(c1); // đang ẩn: đổi màu ngay rồi hiện dần
+    const c0 = pm.color.clone();
+    tween('petal', 2.5, x => { pm.color.lerpColors(c0, c1, x); pm.opacity = o0 + (o1 - o0) * x; petals.visible = pm.opacity > .01; });
+    const B = BLOOM, m0 = B.uMix.value;
+    if (S.bloom) {
+      if (m0 < .01) { B.uDark.value.set(S.bloom[0]); B.uLight.value.set(S.bloom[1]); }
+      const d0 = B.uDark.value.clone(), l0 = B.uLight.value.clone(), d1 = C(S.bloom[0]), l1 = C(S.bloom[1]);
+      tween('bloom', 3, x => { B.uDark.value.lerpColors(d0, d1, x); B.uLight.value.lerpColors(l0, l1, x); B.uMix.value = m0 + (1 - m0) * x; });
+    } else tween('bloom', 3, x => { B.uMix.value = m0 * (1 - x); });
     env.userData.seasonTint.setRGB(...S.tint); env.userData.retint?.();
   };
 
@@ -195,6 +215,7 @@ export function buildXianxia(scene) {
   let last = performance.now();
   (function tick(now) {
     const dt = Math.min(.05, (now - last) / 1000), t = now / 1000; last = now;
+    runTweens(now);
     for (const c of clouds) { c.position.x += c.userData.v * dt; if (c.position.x > 260) c.position.x = -260; }
     for (const l of lanterns) { l.position.y += l.userData.v * dt; if (l.position.y > 32) l.position.y = -6; }
     isl.forEach((g, i) => { g.position.y = g.userData.y + Math.sin(t * .5 + i) * .8; });
@@ -217,13 +238,25 @@ export function buildXianxia(scene) {
 // Tranh tiên cảnh anime (David vẽ bằng Gemini Pro) dán lên vòm trụ quanh nhân vật để xoay 360°:
 // nửa sau lưng Sam là bản lật (nhìn từ trong vòm ảnh bị ngược), nửa kia là bản gốc → hai mép nối liền.
 // Có bg/tien-canh.mp4 (video lặp vòng làm từ chính tranh đó) thì phát video cho cảnh động; không có thì dùng ảnh.
+const TINT = new THREE.Color(1, 1, 1); // ám màu thời tiết × mùa đang áp lên vòm
 function dome(env, tex, w, h) {
   const R = 600, H = Math.PI * R * h / w; // giữ đúng tỉ lệ khung trên nửa vòng
   const half = (start, flip) => {
     let t = tex;
     if (flip) { t = tex.clone(); t.wrapS = THREE.RepeatWrapping; t.repeat.x = -1; t.offset.x = 1; t.needsUpdate = true; }
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(R, R, H, 64, 1, true, start, Math.PI),
-      new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide, fog: false, toneMapped: false, depthWrite: false }));
+    const mat = new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide, fog: false, toneMapped: false, depthWrite: false,
+      transparent: true, opacity: env.userData.op ?? 0, forceSinglePass: true });
+    mat.color.copy(TINT);
+    mat.onBeforeCompile = sh => {
+      Object.assign(sh.uniforms, BLOOM);
+      sh.fragmentShader = 'uniform sampler2D uHoa; uniform vec3 uDark, uLight; uniform float uMix;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+        { float hm = texture2D(uHoa, vMapUv).r * uMix;
+          if (hm > .001) { const vec3 W = vec3(.2126, .7152, .0722); float L = dot(diffuseColor.rgb, W);
+            vec3 c = mix(uDark, uLight, smoothstep(.02, .7, L));  // đậm nhạt theo bóng của tranh
+            c *= L / max(dot(c, W), .02);                          // giữ độ sáng gốc
+            diffuseColor.rgb = mix(diffuseColor.rgb, min(c, vec3(1.)), hm); } }`);
+    };
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(R, R, H, 64, 1, true, start, Math.PI), mat);
     m.position.y = 1.1 + H * .12; m.renderOrder = -1; // nâng: lộ đảo bay, thác, biển mây sau lưng Sam
     return m;
   };
@@ -243,20 +276,28 @@ export const phaseByClock = (h = new Date().getHours()) => h >= 6 && h < 16 ? 'n
 function painting(scene, env, far) {
   const domes = {}; let cur = null;
   const hideFar = () => { far.forEach(o => { if (o.geometry?.type === 'SphereGeometry') o.renderOrder = -2; else o.visible = false; }); scene.fog = null; };
-  const show = name => { for (const k in domes) domes[k].group.visible = k === name; };
+  const setOp = (g, a) => { g.userData.op = a; g.traverse(o => { if (o.isMesh) o.material.opacity = a; }); };
+  const show = name => { // tranh mới hiện dần đè lên tranh cũ, xong mới ẩn tranh cũ
+    const g = domes[name].group, from = g.userData.op ?? 0; g.visible = true;
+    for (const k in domes) domes[k].group.traverse(o => { if (o.isMesh) o.renderOrder = k === name ? -1 : -1.5; });
+    tween('phase', 2.5, x => {
+      setOp(g, from + (1 - from) * x);
+      if (x >= 1 && g.children.length) for (const k in domes) if (k !== name) { domes[k].group.visible = false; setOp(domes[k].group, 0); }
+    });
+  };
   function load(name) {
     if (domes[name]) return;
     const d = domes[name] = { group: new THREE.Group() }; env.add(d.group);
     new THREE.TextureLoader().load(`bg/${name}.jpg`, tex => {
       tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
-      d.img = dome(d.group, tex, tex.image.width, tex.image.height); hideFar(); show(cur); env.userData.retint?.();
+      d.img = dome(d.group, tex, tex.image.width, tex.image.height); hideFar(); if (cur === name) show(name);
     }, undefined, e => console.warn('tranh nền', name, e));
     const v = document.createElement('video');
     Object.assign(v, { src: `bg/${name}.mp4`, muted: true, loop: true, playsInline: true, crossOrigin: 'anonymous', preload: 'auto' });
     v.setAttribute('playsinline', ''); v.setAttribute('muted', '');
     v.addEventListener('loadeddata', () => {
       const tex = new THREE.VideoTexture(v); tex.colorSpace = THREE.SRGBColorSpace;
-      dome(d.group, tex, v.videoWidth, v.videoHeight); if (d.img) d.img.visible = false; hideFar(); env.userData.retint?.();
+      dome(d.group, tex, v.videoWidth, v.videoHeight); if (d.img) d.img.visible = false; hideFar();
       d.video = v; if (cur === name) v.play().catch(() => document.addEventListener('pointerdown', () => v.play().catch(() => {}), { once: true }));
     }, { once: true });
     v.addEventListener('error', () => {}, { once: true }); // chưa có video buổi này: dùng ảnh
@@ -264,8 +305,9 @@ function painting(scene, env, far) {
   env.userData.setPhase = name => {
     cur = name; load(name); show(name);
     for (const k in domes) { const v = domes[k].video; if (v) k === name ? v.play().catch(() => {}) : v.pause(); }
-    const P = PHASES[name];
-    scene.traverse(o => { if (o.isAmbientLight) o.intensity = P.amb; if (o.isDirectionalLight) { o.intensity = P.dir; o.color.set(P.color); } });
+    const P = PHASES[name], to = new THREE.Color(P.color), ls = [];
+    scene.traverse(o => { if (o.isAmbientLight) ls.push([o, o.intensity, P.amb]); if (o.isDirectionalLight) ls.push([o, o.intensity, P.dir, o.color.clone()]); });
+    tween('light', 2.5, x => ls.forEach(([o, a, b, c]) => { o.intensity = a + (b - a) * x; if (c) o.color.lerpColors(c, to, x); }));
   };
 }
 
@@ -279,14 +321,14 @@ export const REGIONS = {
   hue: ['Huế', 16.46, 107.59, 'trung'], dng: ['Đà Nẵng', 16.05, 108.2, 'trung'], nt: ['Nha Trang', 12.24, 109.19, 'trung'],
   dl: ['Đà Lạt', 11.94, 108.44, 'nam'], hcm: ['TP.HCM', 10.78, 106.7, 'nam'], ct: ['Cần Thơ', 10.03, 105.78, 'nam'], pq: ['Phú Quốc', 10.22, 103.96, 'nam'],
 };
-// petal = màu thứ rơi quanh Sam (null = không rơi), tint = ám màu tranh nền
+// petal = màu thứ rơi quanh Sam (null = không rơi), tint = ám màu tranh nền, bloom = màu tán hoa trên tranh (tối, sáng)
 export const SEASONS = {
-  xuan: { label: '🌸 Xuân', petal: 0xffb8cc, tint: [1, .97, .98] },
-  ha: { label: '🌺 Hạ', petal: 0xff4a30, tint: [1, 1, .94] },      // hoa phượng
-  thu: { label: '🍂 Thu', petal: 0xffa040, tint: [1, .9, .78] },     // lá vàng
-  dong: { label: '🧣 Đông', petal: null, tint: [.86, .91, 1] },
-  kho: { label: '🌼 Mùa khô', petal: 0xffd84a, tint: [1, .96, .88] }, // hoa mai / nắng vàng
-  mua: { label: '🌿 Mùa mưa', petal: 0x7fd07a, tint: [.93, 1, .95] },  // lá xanh
+  xuan: { label: '🌸 Xuân', petal: 0xffb8cc, tint: [1, .97, .98], bloom: null },
+  ha: { label: '🌺 Hạ', petal: 0xff4a30, tint: [1, 1, .94], bloom: [0x8a1408, 0xff7a4a] },      // hoa phượng
+  thu: { label: '🍂 Thu', petal: 0xffa040, tint: [1, .9, .78], bloom: [0x8a3a05, 0xffc060] },     // lá vàng
+  dong: { label: '🧣 Đông', petal: null, tint: [.86, .91, 1], bloom: [0x7c8798, 0xffffff] }, // tán phủ sương trắng
+  kho: { label: '🌼 Mùa khô', petal: 0xffd84a, tint: [1, .96, .88], bloom: [0x9a6a00, 0xfff07a] }, // hoa mai vàng
+  mua: { label: '🌿 Mùa mưa', petal: 0x7fd07a, tint: [.93, 1, .95], bloom: [0x1f5a1a, 0x9ee07a] },  // lá xanh
 };
 export function seasonOf(region, m = new Date().getMonth() + 1) {
   const z = REGIONS[region]?.[3] || 'nam';
@@ -331,7 +373,7 @@ export function setupWeather(scene, env) {
   for (let i = 0; i < 40; i++) {
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: fogTex, transparent: true, opacity: rnd(.25, .5), depthWrite: false, toneMapped: false, color: 0xf2f0f7 }));
     const a = rnd(0, 6.28), d = rnd(4.5, 40); s.position.set(Math.cos(a) * d, rnd(-.5, 2.5), Math.sin(a) * d); // không che giữa máy quay và Sam
-    const k = rnd(3, 9) * (1 + d / 15); s.scale.set(k * 1.8, k, 1); s.userData.v = rnd(.1, .4); mist.add(s);
+    const k = rnd(3, 9) * (1 + d / 15); s.scale.set(k * 1.8, k, 1); s.userData.v = rnd(.1, .4); s.userData.o = s.material.opacity; mist.add(s);
   }
   // Chớp: vệt sáng trắng phủ toàn cảnh trong tích tắc
   const flash = document.createElement('div');
@@ -348,12 +390,16 @@ export function setupWeather(scene, env) {
   env.userData.retint = () => {
     const dim = { quang: 1, mua: .72, bao: .55, tuyet: .9, suong: .8 }[kind];
     const tint = { quang: 0xffffff, mua: 0xc8d2e6, bao: 0xa9b3cc, tuyet: 0xe6eeff, suong: 0xe8e6ee }[kind];
-    domes().forEach(m => m.material.color.set(tint).multiplyScalar(dim).multiply(env.userData.seasonTint));
+    const to = new THREE.Color(tint).multiplyScalar(dim).multiply(env.userData.seasonTint), from = TINT.clone();
+    tween('tint', 2.5, x => { TINT.lerpColors(from, to, x); domes().forEach(m => m.material.color.copy(TINT)); });
   };
+  let mistO = 0;
+  const fade = (key, from, to, set, sec = 1.8) => tween(key, sec, x => set(from + (to - from) * x));
   env.userData.setWeather = k => {
     kind = k;
-    rain.visible = k === 'mua' || k === 'bao'; rain.material.opacity = k === 'bao' ? .85 : .7;
-    snow.visible = k === 'tuyet'; mist.visible = k === 'suong';
+    fade('rain', rain.visible ? rain.material.opacity : 0, k === 'bao' ? .85 : k === 'mua' ? .7 : 0, a => { rain.material.opacity = a; rain.visible = a > .01; });
+    fade('snow', snow.visible ? snow.material.opacity : 0, k === 'tuyet' ? 1 : 0, a => { snow.material.opacity = a; snow.visible = a > .01; });
+    fade('mist', mistO, k === 'suong' ? 1 : 0, a => { mistO = a; mist.visible = a > .01; mist.children.forEach(s => s.material.opacity = s.userData.o * a); }, 3);
     env.userData.retint();
     nextBolt = performance.now() + 2500;
   };
