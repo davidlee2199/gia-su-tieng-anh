@@ -207,22 +207,39 @@ export function buildXianxia(scene) {
 }
 
 // Tranh tiên cảnh anime (David vẽ bằng Gemini Pro) dán lên vòm trụ quanh nhân vật để xoay 360°:
-// nửa trước là tranh gốc, nửa sau là bản lật gương → hai mép nối liền. Tải được thì ẩn núi/đảo/mây vẽ bằng khối.
-function painting(scene, env, far, url = 'bg/tien-canh.jpg') {
-  new THREE.TextureLoader().load(url, tex => {
+// nửa sau lưng Sam là bản lật (nhìn từ trong vòm ảnh bị ngược), nửa kia là bản gốc → hai mép nối liền.
+// Có bg/tien-canh.mp4 (video lặp vòng làm từ chính tranh đó) thì phát video cho cảnh động; không có thì dùng ảnh.
+function dome(env, tex, w, h) {
+  const R = 600, H = Math.PI * R * h / w; // giữ đúng tỉ lệ khung trên nửa vòng
+  const half = (start, flip) => {
+    let t = tex;
+    if (flip) { t = tex.clone(); t.wrapS = THREE.RepeatWrapping; t.repeat.x = -1; t.offset.x = 1; t.needsUpdate = true; }
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(R, R, H, 64, 1, true, start, Math.PI),
+      new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide, fog: false, toneMapped: false, depthWrite: false }));
+    m.position.y = 1.1 + H * .12; m.renderOrder = -1; // nâng: lộ đảo bay, thác, biển mây sau lưng Sam
+    return m;
+  };
+  const g = new THREE.Group(); g.add(half(Math.PI * .5, true), half(Math.PI * 1.5, false)); env.add(g);
+  return g;
+}
+
+function painting(scene, env, far) {
+  const done = () => { far.forEach(o => { if (o.geometry?.type === 'SphereGeometry') o.renderOrder = -2; else o.visible = false; }); scene.fog = null; };
+  let img = null;
+  new THREE.TextureLoader().load('bg/tien-canh.jpg', tex => {
     tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
-    const R = 600, H = Math.PI * R * tex.image.height / tex.image.width; // giữ đúng tỉ lệ tranh trên nửa vòng
-    const half = (start, flip) => {
-      const t = tex.clone(); t.needsUpdate = true;
-      if (flip) { t.wrapS = THREE.RepeatWrapping; t.repeat.x = -1; t.offset.x = 1; }
-      const m = new THREE.Mesh(new THREE.CylinderGeometry(R, R, H, 64, 1, true, start, Math.PI),
-        new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide, fog: false, toneMapped: false, depthWrite: false }));
-      m.position.y = 1.1 + H * .12; m.renderOrder = -1; // nâng tranh: lộ đảo bay, thác, biển mây sau lưng Sam
-      return m;
-    };
-    // Nửa sau lưng Sam (hướng -Z, góc π/2→3π/2): nhìn từ trong vòm thì ảnh bị ngược, nên dùng bản lật để ra đúng chiều.
-    env.add(half(Math.PI * .5, true), half(Math.PI * 1.5, false));
-    far.forEach(o => { if (o.geometry?.type === 'SphereGeometry') o.renderOrder = -2; else o.visible = false; }); // trời gradient vẽ trước, tranh đè lên
-    scene.fog = null;
+    img = dome(env, tex, tex.image.width, tex.image.height); done();
   }, undefined, e => console.warn('tranh nền', e));
+
+  // Video nền: tắt tiếng + playsinline để điện thoại cho tự phát; lỗi thì giữ ảnh tĩnh.
+  const v = document.createElement('video');
+  Object.assign(v, { src: 'bg/tien-canh.mp4', muted: true, loop: true, playsInline: true, crossOrigin: 'anonymous', preload: 'auto' });
+  v.setAttribute('playsinline', ''); v.setAttribute('muted', '');
+  v.addEventListener('loadeddata', () => {
+    const tex = new THREE.VideoTexture(v); tex.colorSpace = THREE.SRGBColorSpace;
+    dome(env, tex, v.videoWidth, v.videoHeight); if (img) img.visible = false; done();
+    const play = () => v.play().catch(() => {});
+    play(); document.addEventListener('pointerdown', play, { once: true }); // trình duyệt chặn tự phát thì phát ở lần chạm đầu
+  }, { once: true });
+  v.addEventListener('error', () => {}, { once: true }); // chưa có video: im lặng dùng ảnh
 }
