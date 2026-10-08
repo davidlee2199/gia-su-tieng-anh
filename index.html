@@ -100,7 +100,7 @@
   #call .cap:empty { display:none; }
   #avatar.ready { display:block; }
   #avatar.ready ~ #callAva { display:none; }
-  #avaCredit { font-size:11px; opacity:.5; }
+  #avaCredit { font-size:11px; opacity:.7; background:#0006; border-radius:8px; padding:1px 8px; }
 </style>
 </head>
 <body>
@@ -127,7 +127,7 @@
     <button id="callExam">🎤 Thi thử Speaking</button>
     <button class="end" id="callStop">📵 Kết thúc</button>
   </div>
-  <div id="avaCredit">Nhân vật 3D: TalkingHead + HeadAudio (MIT) · nhân vật tự nặn bằng VRoid Studio</div>
+  <div id="avaCredit">👆 Kéo màn hình để xoay 360° · TalkingHead + HeadAudio (MIT) · nhân vật VRoid</div>
   <p class="hint" id="callHint">Nói tiếng Anh tự nhiên như gọi điện. Sam nghe giọng thật nên chấm được cả phát âm. Muốn chen ngang cứ nói, Sam sẽ dừng lại nghe.</p>
 </div>
 <nav>
@@ -635,11 +635,11 @@ function onLive(L, m, firstText) {
   }
   if (m.goAway) $('#callStatus').textContent = 'Phiên gọi sắp hết giờ, lát nữa bấm Gọi lại nhé.';
   const sc = m.serverContent; if (!sc) return;
-  if (sc.inputTranscription?.text) { L.inT += sc.inputTranscription.text; $('#callYou').textContent = 'Bạn: ' + L.inT.trim(); }
-  if (sc.outputTranscription?.text) { L.outT += sc.outputTranscription.text; $('#callSam').textContent = 'Sam: ' + L.outT.trim(); }
+  if (sc.inputTranscription?.text) { L.inT += sc.inputTranscription.text; $('#callYou').textContent = 'Bạn: ' + L.inT.trim(); window.Avatar?.listen(); }
+  if (sc.outputTranscription?.text) { L.outT += sc.outputTranscription.text; $('#callSam').textContent = 'Sam: ' + L.outT.trim(); window.Avatar?.react(L.outT); }
   for (const p of sc.modelTurn?.parts || []) if (p.inlineData?.data) playPcm(L, p.inlineData.data);
   if (sc.interrupted) stopPlayback(L);
-  if (sc.turnComplete && window.Avatar?.active) { Avatar.mood(L.outT); Avatar.end(); }
+  if (sc.turnComplete && window.Avatar?.active) { Avatar.mood(L.outT); Avatar.end(); Avatar.newTurn(); }
   if (sc.turnComplete || sc.interrupted) flush(L);
 }
 
@@ -692,6 +692,7 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catc
 // Không tải được (máy yếu, lỗi WebGL) thì Avatar.active = false và cuộc gọi tự phát giọng như cũ, hiện ảnh tĩnh.
 import { TalkingHead } from 'talkinghead';
 import { HeadAudio } from 'https://cdn.jsdelivr.net/gh/met4citizen/HeadAudio@main/dist/headaudio.min.mjs';
+import { buildXianxia } from './xianxia.mjs';
 const HA = 'https://cdn.jsdelivr.net/gh/met4citizen/HeadAudio@main/dist/';
 const GLB = 'sam.glb'; // nhân vật David tự nặn trong VRoid (tools/sam-david.vrm), chuyển bằng tools/vroid-to-talkinghead-giu-mau.py
 let head = null, ha = null, loading = null;
@@ -702,6 +703,31 @@ function resample(src, from, to) {
   const n = Math.round(src.length * to / from), out = new Int16Array(n), r = from / to;
   for (let i = 0; i < n; i++) { const x = i * r, j = x | 0, f = x - j; out[i] = src[j] + ((src[j + 1] ?? src[j]) - src[j]) * f; }
   return out;
+}
+
+// Cử chỉ dễ thương theo lời Sam nói (mỗi câu tối đa 1 cử chỉ tay + 1 biểu cảm, không lặp lại trong câu).
+const REACT = [
+  [/\b(hi|hello|hey|bye|see you|good night|welcome)\b|chào/i, 'handup', '😊'],
+  [/\b(thank|thanks)\b|cảm ơn/i, 'namaste', '😊'],
+  [/\b(great|awesome|amazing|perfect|nice|well done|good job|excellent|congrat\w*|nailed)\b|giỏi|đỉnh/i, 'thumbup', '😄'],
+  [/\b(i don'?t know|not sure|maybe|who knows|whatever)\b/i, 'shrug', '🙃'],
+  [/\b(remember|tip|note|try|should|make sure|important|listen)\b|nhớ/i, 'index', '🙂'],
+  [/\b(ok(ay)?|sure|alright|deal|got it)\b/i, 'ok', '😉'],
+  [/\b(love|cute|sweet|adorable|miss you)\b|thương|dễ thương/i, null, '😘'],
+  [/\b(haha|lol|hilarious|funny|joking)\b/i, null, '😂'],
+  [/\b(sorry|oh no|that sucks|poor you|rough|tough)\b|tiếc/i, null, '🥺'],
+  [/\b(wow|really|no way|seriously)\b/i, null, '😳'],
+  [/\?\s*$/, null, '🤔'],
+];
+let fired = new Set(), lastGesture = 0, lastNod = 0;
+function cute(name, dur = 2.5) { try { head?.playGesture(name, dur, Math.random() < .5); } catch {} }
+// Lúc ngồi nghe: thỉnh thoảng nháy mắt, mỉm cười, nghiêng đầu, chống hông.
+function idleCute() {
+  const pick = ['😉', '😊', '🙂', '😚', '👀', 'side'];
+  setTimeout(function loop() {
+    if (head && !head.isSpeaking && Date.now() - lastGesture > 6000) { cute(pick[Math.random() * pick.length | 0], 2); lastGesture = Date.now(); }
+    setTimeout(loop, 7000 + Math.random() * 7000);
+  }, 6000);
 }
 
 const MOODS = [ // ponytail: đoán biểu cảm theo chữ Sam nói; muốn chuẩn hơn thì cho Gemini gọi hàm set_mood
@@ -720,7 +746,13 @@ window.Avatar = {
         lightAmbientIntensity: 0.9, lightDirectIntensity: 3, lightDirectColor: 0xffffff, // đèn mặc định (2/30) làm da trắng bệch, tóc hồng
         modelPixelRatio: Math.min(1, 1.5 / devicePixelRatio), avatarMood: 'happy' }); // Redmi dpr 2.75: vẽ full nét 14 fps, nét 1.5 thì 60 fps
       await head.showAvatar({ url: GLB, body: 'F', avatarMood: 'happy', lipsyncLang: 'en', baseline: { headRotateX: -0.1, eyeBlinkLeft: 0.05, eyeBlinkRight: 0.05 } });
+      // Ống kính mặc định 10° (tele) chỉ thấy một mẩu nền: mở 35° rồi kéo máy lại gần, giữ nguyên cỡ nhân vật.
+      // Chiều cao khung = 2·z·tan(fov/2): fov 10 ở z 6.9 ≈ fov 35 ở z 1.92 (z = cameraDistance + 8 với view 'mid').
+      head.camera.fov = 35; head.camera.updateProjectionMatrix(); head.opt.cameraDistance = -6.08; head.setView('mid');
+      try { buildXianxia(head.scene); } catch (e) { console.warn('xianxia', e); } // cảnh tiên hiệp 3D
+      Object.assign(head.controls, { enableRotate: true, minPolarAngle: .35, maxPolarAngle: 1.75, rotateSpeed: .6 }); // kéo để xoay 360°, không chui dưới đất
       node.classList.add('ready'); document.getElementById('call').classList.add('has3d');
+      idleCute();
       return true;
     })().catch(e => { console.warn('avatar', e); loading = null; return false; });
   },
@@ -746,6 +778,21 @@ window.Avatar = {
   interrupt() { try { head.streamInterrupt(); } catch {} },
   stop() { if (head) try { head.streamStop(); } catch {} this.active = false; },
   get head() { return head; }, get ha() { return ha; }, // để soi lỗi
+  // Gọi mỗi khi có thêm chữ Sam nói: bắt từ khoá để làm cử chỉ ngay lúc đang nói.
+  react(text) {
+    if (!head) return;
+    for (const [re, hand, face] of REACT) {
+      const key = String(re);
+      if (fired.has(key) || !re.test(text)) continue;
+      fired.add(key);
+      if (hand && Date.now() - lastGesture > 2500) { cute(hand, 2.8); lastGesture = Date.now(); }
+      if (face) setTimeout(() => cute(face, 2), hand ? 600 : 0);
+      break;
+    }
+  },
+  newTurn() { fired = new Set(); },
+  // Mình đang nói: Sam gật gù lắng nghe.
+  listen() { if (head && !head.isSpeaking && Date.now() - lastNod > 3500) { cute('yes', 1.5); lastNod = Date.now(); } },
   mood(text) { if (!head) return; const m = MOODS.find(([re]) => re.test(text)); head.setMood(m ? m[1] : 'happy'); },
 };
 </script>
