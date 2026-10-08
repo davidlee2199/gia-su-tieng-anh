@@ -117,16 +117,17 @@ function crane() {
 export function buildXianxia(scene) {
   const env = new THREE.Group(); env.name = 'xianxia'; scene.add(env);
   scene.fog = new THREE.Fog(0xf2c7c4, 60, 420);
-  env.add(sky());
+  const far = []; const addFar = o => { env.add(o); far.push(o); return o; };
+  addFar(sky());
 
   const moon = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow('rgba(255,248,230,1)'), fog: false, depthWrite: false }));
-  moon.scale.set(150, 150, 1); moon.position.set(-160, 120, -560); env.add(moon);
-  const moonCore = new THREE.Mesh(new THREE.CircleGeometry(30, 48), basic({ color: 0xfff6e2, fog: false })); moonCore.position.set(-160, 120, -555); moonCore.lookAt(0, 0, 0); env.add(moonCore);
+  moon.scale.set(150, 150, 1); moon.position.set(-160, 120, -560); addFar(moon);
+  const moonCore = new THREE.Mesh(new THREE.CircleGeometry(30, 48), basic({ color: 0xfff6e2, fog: false })); moonCore.position.set(-160, 120, -555); moonCore.lookAt(0, 0, 0); addFar(moonCore);
 
   // 5 lớp núi: xa nhạt (tím hồng), gần đậm (chàm)
   [[700, -20, 120, 90, 0xb9a6cf, 0xf3cdc8], [560, -25, 100, 80, 0x9c87bd, 0xedc2c4], [430, -28, 85, 70, 0x7b6ba6, 0xe6b7c0],
    [320, -30, 70, 55, 0x5a5488, 0xdcaabb], [230, -32, 55, 42, 0x3d3f6b, 0xcf9fb6]]
-    .forEach(([r, b, h, j, t, f], i) => env.add(ridgeRing(r, b, h, j, t, f, i * 2 + 1)));
+    .forEach(([r, b, h, j, t, f], i) => addFar(ridgeRing(r, b, h, j, t, f, i * 2 + 1)));
 
   // Biển mây phẳng kiểu anime
   const cloudTex = canvasTex(256, 128, (g, w) => {
@@ -138,7 +139,7 @@ export function buildXianxia(scene) {
   for (let i = 0; i < 70; i++) {
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, transparent: true, depthWrite: false, opacity: rnd(.75, 1), color: C(i % 3 ? 0xfff3f3 : 0xffe1e6) }));
     const a = rnd(0, Math.PI * 2), d = rnd(45, 260); s.position.set(Math.cos(a) * d, rnd(-30, -14), Math.sin(a) * d);
-    const k = rnd(30, 80); s.scale.set(k * 2, k, 1); s.userData.v = rnd(.3, 1.2); env.add(s); clouds.push(s);
+    const k = rnd(30, 80); s.scale.set(k * 2, k, 1); s.userData.v = rnd(.3, 1.2); addFar(s); clouds.push(s);
   }
 
   // Thác nước: sọc trắng xanh trượt xuống
@@ -148,7 +149,7 @@ export function buildXianxia(scene) {
   // Đảo bay + lầu các
   const isl = [];
   [[-38, 6, -60, 7, true], [46, 14, -95, 9, true], [70, -2, 30, 6, false], [-65, 10, 45, 8, true], [10, 22, -150, 12, true]].forEach(([x, y, z, r, pav]) => {
-    const g = island(r, water); g.position.set(x, y, z); g.userData.y = y; env.add(g); isl.push(g);
+    const g = island(r, water); g.position.set(x, y, z); g.userData.y = y; addFar(g); isl.push(g);
     if (pav) { const p = pavilion(r * .55); p.position.y = r * .09; g.add(p); }
   });
 
@@ -158,13 +159,13 @@ export function buildXianxia(scene) {
   const rail = basic({ color: 0xb8323a });
   for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; if (Math.sin(a) > .35) continue; // chừa lối phía trước (phía máy quay, +Z)
     const p = new THREE.Mesh(new THREE.CylinderGeometry(.03, .03, .45, 6), rail); p.position.set(Math.cos(a) * 1.55, .22, Math.sin(a) * 1.55); env.add(p); }
-  const tree = sakura(); tree.position.set(-2.2, -.1, -3.0); tree.scale.setScalar(1.5); env.add(tree);
-  const tree2 = sakura(); tree2.position.set(2.6, -.1, -3.6); tree2.scale.setScalar(1.3); tree2.rotation.y = 2; env.add(tree2);
+  const tree = sakura(); tree.position.set(-2.2, -.1, -3.0); tree.scale.setScalar(1.5); addFar(tree);
+  const tree2 = sakura(); tree2.position.set(2.6, -.1, -3.6); tree2.scale.setScalar(1.3); tree2.rotation.y = 2; addFar(tree2); // có tranh thì ẩn (tranh đã có hoa đào)
   const halo = new THREE.Mesh(new THREE.CircleGeometry(3.4, 48), basic({ map: glow('rgba(170,255,225,0.5)'), transparent: true, depthWrite: false })); halo.rotation.x = -Math.PI / 2; halo.position.y = -.3; env.add(halo);
 
   // Hạc bay vòng
   const cranes = [];
-  for (let i = 0; i < 6; i++) { const c = crane(); c.scale.setScalar(rnd(1.2, 2.2)); Object.assign(c.userData, { r: rnd(40, 110), h: rnd(12, 40), a: rnd(0, 6.28), v: rnd(.05, .12) }); env.add(c); cranes.push(c); }
+  for (let i = 0; i < 6; i++) { const c = crane(); c.scale.setScalar(rnd(1.2, 2.2)); Object.assign(c.userData, { r: rnd(40, 110), h: rnd(12, 40), a: rnd(0, 6.28), v: rnd(.05, .12) }); addFar(c); cranes.push(c); }
 
   // Đèn lồng bay lên
   const lt = glow('rgba(255,190,100,1)'), lanterns = [];
@@ -181,6 +182,7 @@ export function buildXianxia(scene) {
   env.add(new THREE.Points(pg, new THREE.PointsMaterial({ map: glow('rgba(255,170,200,1)', 32), size: .09, transparent: true, depthWrite: false, color: 0xffd0e0 })));
 
   env.traverse(o => { if (o.material) o.material.toneMapped = false; });
+  painting(scene, env, far);
 
   let last = performance.now();
   (function tick(now) {
@@ -202,4 +204,25 @@ export function buildXianxia(scene) {
     requestAnimationFrame(tick);
   })(last);
   return env;
+}
+
+// Tranh tiên cảnh anime (David vẽ bằng Gemini Pro) dán lên vòm trụ quanh nhân vật để xoay 360°:
+// nửa trước là tranh gốc, nửa sau là bản lật gương → hai mép nối liền. Tải được thì ẩn núi/đảo/mây vẽ bằng khối.
+function painting(scene, env, far, url = 'bg/tien-canh.jpg') {
+  new THREE.TextureLoader().load(url, tex => {
+    tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+    const R = 600, H = Math.PI * R * tex.image.height / tex.image.width; // giữ đúng tỉ lệ tranh trên nửa vòng
+    const half = (start, flip) => {
+      const t = tex.clone(); t.needsUpdate = true;
+      if (flip) { t.wrapS = THREE.RepeatWrapping; t.repeat.x = -1; t.offset.x = 1; }
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(R, R, H, 64, 1, true, start, Math.PI),
+        new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide, fog: false, toneMapped: false, depthWrite: false }));
+      m.position.y = 1.1 + H * .12; m.renderOrder = -1; // nâng tranh: lộ đảo bay, thác, biển mây sau lưng Sam
+      return m;
+    };
+    // Nửa sau lưng Sam (hướng -Z, góc π/2→3π/2): nhìn từ trong vòm thì ảnh bị ngược, nên dùng bản lật để ra đúng chiều.
+    env.add(half(Math.PI * .5, true), half(Math.PI * 1.5, false));
+    far.forEach(o => { if (o.geometry?.type === 'SphereGeometry') o.renderOrder = -2; else o.visible = false; }); // trời gradient vẽ trước, tranh đè lên
+    scene.fog = null;
+  }, undefined, e => console.warn('tranh nền', e));
 }
