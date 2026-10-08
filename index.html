@@ -100,6 +100,7 @@
   #call .cap:empty { display:none; }
   #avatar.ready { display:block; }
   #avatar.ready ~ #callAva { display:none; }
+  #call #bgBtn { position:absolute; top:calc(14px + env(safe-area-inset-top)); right:14px; z-index:2; border:0; border-radius:99px; padding:7px 13px; background:#0007; color:#fff; font-weight:700; font-size:14px; }
   #avaCredit { font-size:11px; opacity:.7; background:#0006; border-radius:8px; padding:1px 8px; }
 </style>
 </head>
@@ -113,6 +114,7 @@
 </header>
 <div id="call">
   <div id="avatar"></div>
+  <button id="bgBtn" hidden>🏞️</button>
   <img id="callAva" src="icon-512.png" alt="Sam">
   <h2>Sam</h2>
   <div id="callStatus">Bấm Gọi để nói chuyện bằng giọng nói</div>
@@ -127,7 +129,7 @@
     <button id="callExam">🎤 Thi thử Speaking</button>
     <button class="end" id="callStop">📵 Kết thúc</button>
   </div>
-  <div id="avaCredit">👆 Kéo màn hình để xoay 360° · TalkingHead + HeadAudio (MIT) · nhân vật VRoid · mocap © Bandai Namco Research (CC BY-NC-ND)</div>
+  <div id="avaCredit">👆 Kéo màn hình để xoay 360° · TalkingHead + HeadAudio (MIT) · nhân vật VRoid · mocap © Bandai Namco Research (CC BY-NC-ND) · ảnh 360° Poly Haven (CC0)</div>
   <p class="hint" id="callHint">Nói tiếng Anh tự nhiên như gọi điện. Sam nghe giọng thật nên chấm được cả phát âm. Muốn chen ngang cứ nói, Sam sẽ dừng lại nghe.</p>
 </div>
 <nav>
@@ -692,7 +694,7 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catc
 // Không tải được (máy yếu, lỗi WebGL) thì Avatar.active = false và cuộc gọi tự phát giọng như cũ, hiện ảnh tĩnh.
 import { TalkingHead } from 'talkinghead';
 import { HeadAudio } from 'https://cdn.jsdelivr.net/gh/met4citizen/HeadAudio@main/dist/headaudio.min.mjs';
-import { buildXianxia } from './xianxia.mjs';
+import { buildXianxia, setPanorama, PANOS } from './xianxia.mjs';
 import { playMocap, preloadMocap } from './mocap.mjs';
 const HA = 'https://cdn.jsdelivr.net/gh/met4citizen/HeadAudio@main/dist/';
 const GLB = 'sam.glb'; // nhân vật David tự nặn trong VRoid (tools/sam-david.vrm), chuyển bằng tools/vroid-to-talkinghead-giu-mau.py
@@ -759,7 +761,14 @@ window.Avatar = {
       // Ống kính mặc định 10° (tele) chỉ thấy một mẩu nền: mở 35° rồi kéo máy lại gần, giữ nguyên cỡ nhân vật.
       // Chiều cao khung = 2·z·tan(fov/2): fov 10 ở z 6.9 ≈ fov 35 ở z 1.92 (z = cameraDistance + 8 với view 'mid').
       head.camera.fov = 35; head.camera.updateProjectionMatrix(); head.opt.cameraDistance = -6.08; head.setView('mid');
-      try { buildXianxia(head.scene); } catch (e) { console.warn('xianxia', e); } // cảnh tiên hiệp 3D
+      try {
+        const env = buildXianxia(head.scene); // cảnh tiên hiệp 3D
+        let i = 0; try { i = +(localStorage.getItem('bg_i') ?? 0); } catch {}
+        const apply = () => setPanorama(head.scene, env, PANOS[i] || null).catch(e => console.warn('pano', e));
+        const btn = document.getElementById('bgBtn'), lab = () => btn.textContent = '🏞️ ' + (PANOS[i]?.label || 'Tiên cảnh');
+        btn.hidden = false; lab(); apply();
+        btn.onclick = () => { i = (i + 1) % (PANOS.length + 1); try { localStorage.setItem('bg_i', i); } catch {} lab(); apply(); };
+      } catch (e) { console.warn('xianxia', e); }
       Object.assign(head.controls, { enableRotate: true, minPolarAngle: .35, maxPolarAngle: 1.75, rotateSpeed: .6 }); // kéo để xoay 360°, không chui dưới đất
       node.classList.add('ready'); document.getElementById('call').classList.add('has3d');
       idleCute();

@@ -89,6 +89,7 @@ export function buildXianxia(scene) {
     const k = rnd(40, 110); s.scale.set(k * 1.6, k, 1); s.userData.v = rnd(.05, .18); env.add(s); clouds.push(s);
   }
 
+  const procCount = env.children.length; // trời, trăng, núi, lầu, mây vẽ tay: ẩn khi dùng ảnh chụp 360°
   // Đài ngọc dưới chân nhân vật + vầng sáng
   const jade = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.3, .18, 48), new THREE.MeshBasicMaterial({ color: 0x9fd6c2 }));
   jade.position.y = -.09; env.add(jade);
@@ -113,6 +114,7 @@ export function buildXianxia(scene) {
   env.add(petals);
 
   env.traverse(o => { if (o.material) o.material.toneMapped = false; });
+  env.userData.proc = env.children.slice(0, procCount); env.userData.fog = scene.fog;
   let last = performance.now();
   (function tick(now) {
     const dt = Math.min(.05, (now - last) / 1000); last = now;
@@ -126,4 +128,23 @@ export function buildXianxia(scene) {
     requestAnimationFrame(tick);
   })(last);
   return env;
+}
+
+// Ảnh chụp toàn cảnh 360° thật (Poly Haven, CC0). name = null thì quay về cảnh vẽ tay.
+// yaw: xoay ảnh để phần đẹp nhất nằm sau lưng nhân vật lúc nhìn chính diện.
+export const PANOS = [
+  { name: 'neurathen_rock_castle', label: 'Vách đá', yaw: 0.15 },
+  { name: 'misty_pines', label: 'Rừng sương', yaw: 0 },
+  { name: 'qwantani_dusk_2', label: 'Hoàng hôn', yaw: 2.6 },
+];
+const loaded = {};
+export async function setPanorama(scene, env, pano, base = '') {
+  if (!pano) {
+    scene.background = null; scene.fog = env.userData.fog;
+    env.userData.proc.forEach(o => o.visible = true); return;
+  }
+  const tex = loaded[pano.name] ||= await new THREE.TextureLoader().loadAsync(base + 'bg/' + pano.name + '.jpg');
+  tex.mapping = THREE.EquirectangularReflectionMapping; tex.colorSpace = THREE.SRGBColorSpace;
+  scene.background = tex; scene.backgroundRotation?.set(0, pano.yaw, 0); scene.backgroundIntensity = 1;
+  scene.fog = null; env.userData.proc.forEach(o => o.visible = false);
 }
