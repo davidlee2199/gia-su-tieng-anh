@@ -3,7 +3,7 @@ import subprocess, sys, os
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 D = 1.0
 JOBS = [("Mua he.mp4", 2.5, 9.9, "v-ha.mp4"), ("mua thu.mp4", 2.5, 8.5, "v-thu.mp4"),
-        ("mua dong.mp4", 2.3, 6.3, "v-dong.mp4"), ("mua xuan.mp4", 3.0, 9.9, "v-xuan.mp4")]
+        ("mua dong 2.mp4", 2.3, 8.4, "v-dong.mp4"), ("mua xuan.mp4", 3.0, 9.9, "v-xuan.mp4")]
 for src, a, b, out in JOBS:
     fc = (f"[0:v]split=3[s1][s2][s3];"
           f"[s1]trim={a + D}:{b - D},setpts=PTS-STARTPTS[mid];"
