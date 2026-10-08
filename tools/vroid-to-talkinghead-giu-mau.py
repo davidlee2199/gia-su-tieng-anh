@@ -1,4 +1,4 @@
-# Bản giữ nguyên màu/đồ của nhân vật tự nặn trong VRoid: bù da/tóc cho đèn PBR, da mặt tools/texd/face-son.png (son + lỗ mũi), sống mũi nâng MUI mét (mặc định 0.005).
+# Bản giữ nguyên màu/đồ của nhân vật tự nặn trong VRoid: bù tóc cho đèn PBR, da trắng hồng (DA), da mặt tools/texd/face-son.png (son + lỗ mũi + má hồng), sống mũi nâng MUI mét.
 # Chạy: blender -b --python convert.py -- <thư mục> <file.vrm> <out.glb>
 import bpy, sys, runpy, os, importlib.util, addon_utils
 D, VRM, OUT = sys.argv[sys.argv.index('--') + 1:][:3]
@@ -62,7 +62,7 @@ def to_principled(mat):
     if img and 'Face_00_SKIN' in mat.name and os.path.exists(os.path.join(D, 'texd', 'face-son.png')):  # môi tô son
         img = bpy.data.images.load(os.path.join(D, 'texd', 'face-son.png'), check_existing=True); print('SON OK')
     # Bù cho đèn PBR (VRoid dùng toon + màu bóng): da ấm lên, tóc trầm lại. Hệ số là màu tuyến tính.
-    if 'SKIN' in mat.name: fac = [1.0, 0.78, 0.68, 1]
+    if 'SKIN' in mat.name: fac = [float(x) for x in os.environ.get('DA', '0.94,0.52,0.50').split(',')] + [1]  # tông da trắng hồng (tuyến tính)
     if 'HAIR' in mat.name: fac = [0.6, 0.6, 0.6, 1]
     nt.nodes.clear()
     out = nt.nodes.new('ShaderNodeOutputMaterial'); bsdf = nt.nodes.new('ShaderNodeBsdfPrincipled')
