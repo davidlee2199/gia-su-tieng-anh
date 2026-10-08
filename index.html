@@ -127,7 +127,7 @@
     <button id="callExam">🎤 Thi thử Speaking</button>
     <button class="end" id="callStop">📵 Kết thúc</button>
   </div>
-  <div id="avaCredit">👆 Kéo màn hình để xoay 360° · TalkingHead + HeadAudio (MIT) · nhân vật VRoid</div>
+  <div id="avaCredit">👆 Kéo màn hình để xoay 360° · TalkingHead + HeadAudio (MIT) · nhân vật VRoid · mocap © Bandai Namco Research (CC BY-NC-ND)</div>
   <p class="hint" id="callHint">Nói tiếng Anh tự nhiên như gọi điện. Sam nghe giọng thật nên chấm được cả phát âm. Muốn chen ngang cứ nói, Sam sẽ dừng lại nghe.</p>
 </div>
 <nav>
@@ -693,6 +693,7 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catc
 import { TalkingHead } from 'talkinghead';
 import { HeadAudio } from 'https://cdn.jsdelivr.net/gh/met4citizen/HeadAudio@main/dist/headaudio.min.mjs';
 import { buildXianxia } from './xianxia.mjs';
+import { playMocap, preloadMocap } from './mocap.mjs';
 const HA = 'https://cdn.jsdelivr.net/gh/met4citizen/HeadAudio@main/dist/';
 const GLB = 'sam.glb'; // nhân vật David tự nặn trong VRoid (tools/sam-david.vrm), chuyển bằng tools/vroid-to-talkinghead-giu-mau.py
 let head = null, ha = null, loading = null;
@@ -707,12 +708,13 @@ function resample(src, from, to) {
 
 // Cử chỉ dễ thương theo lời Sam nói (mỗi câu tối đa 1 cử chỉ tay + 1 biểu cảm, không lặp lại trong câu).
 const REACT = [
-  [/\b(hi|hello|hey|bye|see you|good night|welcome)\b|chào/i, 'handup', '😊'],
-  [/\b(thank|thanks)\b|cảm ơn/i, 'namaste', '😊'],
+  [/\b(hi|hello|hey|bye|see you|good night|welcome)\b|chào/i, 'handup', '😊', 'bye_feminine_001'],
+  [/\b(thank|thanks)\b|cảm ơn/i, 'namaste', '😊', 'bow_feminine_001'],
   [/\b(great|awesome|amazing|perfect|nice|well done|good job|excellent|congrat\w*|nailed)\b|giỏi|đỉnh/i, 'thumbup', '😄'],
   [/\b(i don'?t know|not sure|maybe|who knows|whatever)\b/i, 'shrug', '🙃'],
-  [/\b(remember|tip|note|try|should|make sure|important|listen)\b|nhớ/i, 'index', '🙂'],
-  [/\b(ok(ay)?|sure|alright|deal|got it)\b/i, 'ok', '😉'],
+  [/\b(remember|tip|note|try|should|make sure|important|listen)\b|nhớ/i, 'index', '🙂', 'guide_feminine_001'],
+  [/\b(ok(ay)?|sure|alright|deal|got it)\b/i, 'ok', '😉', 'respond_normal_001'],
+  [/\b(danc\w*|let'?s party)\b|nhảy/i, null, '😆', 'dance-short_normal_001'],
   [/\b(love|cute|sweet|adorable|miss you)\b|thương|dễ thương/i, null, '😘'],
   [/\b(haha|lol|hilarious|funny|joking)\b/i, null, '😂'],
   [/\b(sorry|oh no|that sucks|poor you|rough|tough)\b|tiếc/i, null, '🥺'],
@@ -721,6 +723,14 @@ const REACT = [
 ];
 let fired = new Set(), lastGesture = 0, lastNod = 0;
 function cute(name, dur = 2.5) { try { head?.playGesture(name, dur, Math.random() < .5); } catch {} }
+// Động tác mocap thật (Bandai Namco); lỗi mạng thì dùng cử chỉ tay có sẵn.
+let mocapBusy = false;
+async function mocap(name, fallback) {
+  if (mocapBusy) return; mocapBusy = true;
+  const ok = await playMocap(head, name, 1);
+  if (!ok && fallback) cute(fallback, 2.8);
+  setTimeout(() => mocapBusy = false, /dance/.test(name) ? 15000 : 4000);
+}
 // Lúc ngồi nghe: thỉnh thoảng nháy mắt, mỉm cười, nghiêng đầu, chống hông.
 function idleCute() {
   const pick = ['😉', '😊', '🙂', '😚', '👀', 'side'];
@@ -753,6 +763,7 @@ window.Avatar = {
       Object.assign(head.controls, { enableRotate: true, minPolarAngle: .35, maxPolarAngle: 1.75, rotateSpeed: .6 }); // kéo để xoay 360°, không chui dưới đất
       node.classList.add('ready'); document.getElementById('call').classList.add('has3d');
       idleCute();
+      preloadMocap(head, ['bye_feminine_001', 'bow_feminine_001', 'guide_feminine_001', 'respond_normal_001']);
       return true;
     })().catch(e => { console.warn('avatar', e); loading = null; return false; });
   },
@@ -769,7 +780,7 @@ window.Avatar = {
         head.opt.update = ha.update.bind(ha);
         head.audioSpeechGainNode.connect(ha);
       }
-      head.playGesture('handup', 2.5); // vẫy tay chào khi bắt máy
+      mocap('bye_feminine_001', 'handup'); // vẫy tay chào khi bắt máy (mocap thật)
       return this.active = true;
     } catch (e) { console.warn('avatar stream', e); return this.active = false; }
   },
@@ -781,11 +792,11 @@ window.Avatar = {
   // Gọi mỗi khi có thêm chữ Sam nói: bắt từ khoá để làm cử chỉ ngay lúc đang nói.
   react(text) {
     if (!head) return;
-    for (const [re, hand, face] of REACT) {
+    for (const [re, hand, face, mo] of REACT) {
       const key = String(re);
       if (fired.has(key) || !re.test(text)) continue;
       fired.add(key);
-      if (hand && Date.now() - lastGesture > 2500) { cute(hand, 2.8); lastGesture = Date.now(); }
+      if ((hand || mo) && Date.now() - lastGesture > 2500) { mo ? mocap(mo, hand) : cute(hand, 2.8); lastGesture = Date.now(); }
       if (face) setTimeout(() => cute(face, 2), hand ? 600 : 0);
       break;
     }
