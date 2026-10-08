@@ -183,6 +183,8 @@ export function buildXianxia(scene) {
 
   env.traverse(o => { if (o.material) o.material.toneMapped = false; });
   painting(scene, env, far);
+  env.userData.setPhase(phaseByClock());
+  setupWeather(scene, env);
 
   let last = performance.now();
   (function tick(now) {
@@ -223,23 +225,128 @@ function dome(env, tex, w, h) {
   return g;
 }
 
-function painting(scene, env, far) {
-  const done = () => { far.forEach(o => { if (o.geometry?.type === 'SphereGeometry') o.renderOrder = -2; else o.visible = false; }); scene.fog = null; };
-  let img = null;
-  new THREE.TextureLoader().load('bg/tien-canh.jpg', tex => {
-    tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
-    img = dome(env, tex, tex.image.width, tex.image.height); done();
-  }, undefined, e => console.warn('tranh nền', e));
+// Ngày / chiều / đêm: mỗi buổi một tranh (bg/<buổi>.jpg), có video bg/<buổi>.mp4 thì phát video cho cảnh động.
+// Ánh sáng chiếu lên Sam đổi theo buổi để hợp cảnh.
+export const PHASES = {
+  ngay: { label: '☀️ Ngày', amb: 1.0, dir: 3.4, color: 0xffffff },
+  chieu: { label: '🌇 Chiều', amb: 0.9, dir: 3.0, color: 0xffeedd },
+  dem: { label: '🌙 Đêm', amb: 0.55, dir: 1.6, color: 0xa8b8ff },
+};
+export const phaseByClock = (h = new Date().getHours()) => h >= 6 && h < 16 ? 'ngay' : h >= 16 && h < 19 ? 'chieu' : 'dem';
 
-  // Video nền: tắt tiếng + playsinline để điện thoại cho tự phát; lỗi thì giữ ảnh tĩnh.
-  const v = document.createElement('video');
-  Object.assign(v, { src: 'bg/tien-canh.mp4', muted: true, loop: true, playsInline: true, crossOrigin: 'anonymous', preload: 'auto' });
-  v.setAttribute('playsinline', ''); v.setAttribute('muted', '');
-  v.addEventListener('loadeddata', () => {
-    const tex = new THREE.VideoTexture(v); tex.colorSpace = THREE.SRGBColorSpace;
-    dome(env, tex, v.videoWidth, v.videoHeight); if (img) img.visible = false; done();
-    const play = () => v.play().catch(() => {});
-    play(); document.addEventListener('pointerdown', play, { once: true }); // trình duyệt chặn tự phát thì phát ở lần chạm đầu
-  }, { once: true });
-  v.addEventListener('error', () => {}, { once: true }); // chưa có video: im lặng dùng ảnh
+function painting(scene, env, far) {
+  const domes = {}; let cur = null;
+  const hideFar = () => { far.forEach(o => { if (o.geometry?.type === 'SphereGeometry') o.renderOrder = -2; else o.visible = false; }); scene.fog = null; };
+  const show = name => { for (const k in domes) domes[k].group.visible = k === name; };
+  function load(name) {
+    if (domes[name]) return;
+    const d = domes[name] = { group: new THREE.Group() }; env.add(d.group);
+    new THREE.TextureLoader().load(`bg/${name}.jpg`, tex => {
+      tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+      d.img = dome(d.group, tex, tex.image.width, tex.image.height); hideFar(); show(cur);
+    }, undefined, e => console.warn('tranh nền', name, e));
+    const v = document.createElement('video');
+    Object.assign(v, { src: `bg/${name}.mp4`, muted: true, loop: true, playsInline: true, crossOrigin: 'anonymous', preload: 'auto' });
+    v.setAttribute('playsinline', ''); v.setAttribute('muted', '');
+    v.addEventListener('loadeddata', () => {
+      const tex = new THREE.VideoTexture(v); tex.colorSpace = THREE.SRGBColorSpace;
+      dome(d.group, tex, v.videoWidth, v.videoHeight); if (d.img) d.img.visible = false; hideFar();
+      d.video = v; if (cur === name) v.play().catch(() => document.addEventListener('pointerdown', () => v.play().catch(() => {}), { once: true }));
+    }, { once: true });
+    v.addEventListener('error', () => {}, { once: true }); // chưa có video buổi này: dùng ảnh
+  }
+  env.userData.setPhase = name => {
+    cur = name; load(name); show(name);
+    for (const k in domes) { const v = domes[k].video; if (v) k === name ? v.play().catch(() => {}) : v.pause(); }
+    const P = PHASES[name];
+    scene.traverse(o => { if (o.isAmbientLight) o.intensity = P.amb; if (o.isDirectionalLight) { o.intensity = P.dir; o.color.set(P.color); } });
+  };
+}
+
+// ===== Thời tiết: mưa, giông (sấm chớp), tuyết, sương mù. Hạt bao quanh nhân vật, rẻ cho điện thoại. =====
+export const WEATHERS = {
+  quang: '☀️ Quang', mua: '🌧️ Mưa', bao: '⛈️ Giông', tuyet: '❄️ Tuyết', suong: '🌫️ Sương mù',
+};
+// Mã thời tiết WMO (Open-Meteo) → kiểu của mình
+export function wmoToWeather(code) {
+  if (code >= 95) return 'bao';
+  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return 'mua';
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return 'tuyet';
+  if (code === 45 || code === 48) return 'suong';
+  return 'quang';
+}
+// Thời tiết thật tại TP.HCM (không cần khoá, không xin quyền vị trí)
+export async function realWeather(lat = 10.78, lon = 106.7) {
+  const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=weather_code`);
+  return wmoToWeather((await r.json()).current.weather_code);
+}
+
+export function setupWeather(scene, env) {
+  const R = 7, TOP = 7, rnd = (a, b) => a + Math.random() * (b - a);
+  // Mưa: các vệt ngắn rơi chéo
+  const NR = 1400, rp = new Float32Array(NR * 6), rv = new Float32Array(NR);
+  for (let i = 0; i < NR; i++) {
+    const x = rnd(-R, R), y = rnd(-1, TOP), z = rnd(-R, R); rv[i] = rnd(14, 20);
+    rp.set([x, y, z, x + .04, y - .32, z], i * 6);
+  }
+  const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.BufferAttribute(rp, 3));
+  const rain = new THREE.LineSegments(rg, new THREE.LineBasicMaterial({ color: 0xe6efff, transparent: true, opacity: .7, depthWrite: false, toneMapped: false }));
+  rain.frustumCulled = false; rain.visible = false; env.add(rain);
+  // Tuyết: hạt trắng lả lướt
+  const NS = 900, sp = new Float32Array(NS * 3), sd = new Float32Array(NS);
+  for (let i = 0; i < NS; i++) { sp.set([rnd(-R, R), rnd(-1, TOP), rnd(-R, R)], i * 3); sd[i] = rnd(0, 6.28); }
+  const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(sp, 3));
+  const snow = new THREE.Points(sg, new THREE.PointsMaterial({ map: glow('rgba(255,255,255,1)', 32), size: .1, transparent: true, depthWrite: false, toneMapped: false }));
+  snow.frustumCulled = false; snow.visible = false; env.add(snow);
+  // Sương mù: mây mờ trôi quanh, gần lẫn xa
+  const fogTex = glow('rgba(255,255,255,0.7)', 128), mist = new THREE.Group(); mist.visible = false; env.add(mist);
+  for (let i = 0; i < 40; i++) {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: fogTex, transparent: true, opacity: rnd(.25, .5), depthWrite: false, toneMapped: false, color: 0xf2f0f7 }));
+    const a = rnd(0, 6.28), d = rnd(4.5, 40); s.position.set(Math.cos(a) * d, rnd(-.5, 2.5), Math.sin(a) * d); // không che giữa máy quay và Sam
+    const k = rnd(3, 9) * (1 + d / 15); s.scale.set(k * 1.8, k, 1); s.userData.v = rnd(.1, .4); mist.add(s);
+  }
+  // Chớp: vệt sáng trắng phủ toàn cảnh trong tích tắc
+  const flash = document.createElement('div');
+  flash.style.cssText = 'position:absolute;inset:0;background:#e8eeff;opacity:0;pointer-events:none;transition:opacity .08s;z-index:0';
+  document.getElementById('avatar')?.appendChild(flash);
+
+  let kind = 'quang', nextBolt = 0, lightBase = null;
+  const domes = () => { const out = []; env.traverse(o => { if (o.geometry?.parameters?.radiusTop === 600) out.push(o); }); return out; };
+  function bolt() {
+    const lights = []; scene.traverse(o => { if (o.isAmbientLight || o.isDirectionalLight) lights.push([o, o.intensity]); });
+    const hit = (k) => { flash.style.opacity = k; lights.forEach(([o, i]) => o.intensity = i * (1 + k * 4)); };
+    hit(.75); setTimeout(() => hit(0), 90); setTimeout(() => hit(.5), 180); setTimeout(() => { hit(0); }, 300);
+  }
+  env.userData.setWeather = k => {
+    kind = k;
+    rain.visible = k === 'mua' || k === 'bao'; rain.material.opacity = k === 'bao' ? .85 : .7;
+    snow.visible = k === 'tuyet'; mist.visible = k === 'suong';
+    const dim = { quang: 1, mua: .72, bao: .55, tuyet: .9, suong: .8 }[k];
+    const tint = { quang: 0xffffff, mua: 0xc8d2e6, bao: 0xa9b3cc, tuyet: 0xe6eeff, suong: 0xe8e6ee }[k];
+    domes().forEach(m => m.material.color.set(tint).multiplyScalar(dim));
+    nextBolt = performance.now() + 2500;
+  };
+
+  let last = performance.now();
+  (function tick(now) {
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    if (rain.visible) {
+      for (let i = 0; i < NR; i++) {
+        const o = i * 6, d = rv[i] * dt * (kind === 'bao' ? 1.3 : 1);
+        rp[o + 1] -= d; rp[o + 4] -= d; rp[o] += d * .12; rp[o + 3] += d * .12;
+        if (rp[o + 4] < -1) { const x = rnd(-R, R), z = rnd(-R, R), y = TOP; rp.set([x, y, z, x + .04, y - .32, z], o); }
+      }
+      rg.attributes.position.needsUpdate = true;
+    }
+    if (snow.visible) {
+      for (let i = 0; i < NS; i++) {
+        sd[i] += dt; sp[i * 3] += Math.sin(sd[i]) * .006; sp[i * 3 + 1] -= .45 * dt; sp[i * 3 + 2] += Math.cos(sd[i] * .8) * .005;
+        if (sp[i * 3 + 1] < -1) sp[i * 3 + 1] = TOP;
+      }
+      sg.attributes.position.needsUpdate = true;
+    }
+    if (mist.visible) mist.children.forEach(s => { s.position.x += s.userData.v * dt; if (s.position.x > 40) s.position.x = -40; });
+    if (kind === 'bao' && now > nextBolt) { bolt(); nextBolt = now + rnd(4000, 10000); }
+    requestAnimationFrame(tick);
+  })(last);
 }

@@ -100,6 +100,8 @@
   #call .cap:empty { display:none; }
   #avatar.ready { display:block; }
   #avatar.ready ~ #callAva { display:none; }
+  #call #dnBtn { position:absolute; top:calc(14px + env(safe-area-inset-top)); right:14px; z-index:2; border:0; border-radius:99px; padding:7px 13px; background:#0007; color:#fff; font-weight:700; font-size:14px; }
+  #call #wxBtn { position:absolute; top:calc(54px + env(safe-area-inset-top)); right:14px; z-index:2; border:0; border-radius:99px; padding:7px 13px; background:#0007; color:#fff; font-weight:700; font-size:14px; }
   #avaCredit { font-size:11px; opacity:.7; background:#0006; border-radius:8px; padding:1px 8px; }
 </style>
 </head>
@@ -113,6 +115,8 @@
 </header>
 <div id="call">
   <div id="avatar"></div>
+  <button id="dnBtn" hidden></button>
+  <button id="wxBtn" hidden></button>
   <img id="callAva" src="icon-512.png" alt="Sam">
   <h2>Sam</h2>
   <div id="callStatus">Bấm Gọi để nói chuyện bằng giọng nói</div>
@@ -692,7 +696,7 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catc
 // Không tải được (máy yếu, lỗi WebGL) thì Avatar.active = false và cuộc gọi tự phát giọng như cũ, hiện ảnh tĩnh.
 import { TalkingHead } from 'talkinghead';
 import { HeadAudio } from 'https://cdn.jsdelivr.net/gh/met4citizen/HeadAudio@main/dist/headaudio.min.mjs';
-import { buildXianxia } from './xianxia.mjs';
+import { buildXianxia, PHASES, phaseByClock, WEATHERS, realWeather } from './xianxia.mjs';
 import { playMocap, preloadMocap } from './mocap.mjs';
 const HA = 'https://cdn.jsdelivr.net/gh/met4citizen/HeadAudio@main/dist/';
 const GLB = 'sam.glb'; // nhân vật David tự nặn trong VRoid (tools/sam-david.vrm), chuyển bằng tools/vroid-to-talkinghead-giu-mau.py
@@ -759,7 +763,20 @@ window.Avatar = {
       // Ống kính mặc định 10° (tele) chỉ thấy một mẩu nền: mở 35° rồi kéo máy lại gần, giữ nguyên cỡ nhân vật.
       // Chiều cao khung = 2·z·tan(fov/2): fov 10 ở z 6.9 ≈ fov 35 ở z 1.92 (z = cameraDistance + 8 với view 'mid').
       head.camera.fov = 35; head.camera.updateProjectionMatrix(); head.opt.cameraDistance = -6.08; head.setView('mid');
-      try { buildXianxia(head.scene); } catch (e) { console.warn('xianxia', e); } // tiên cảnh anime 3D
+      try { // tiên cảnh anime 3D + ngày/đêm: 'auto' theo giờ máy, bấm nút để đổi tay
+        const env = buildXianxia(head.scene), btn = document.getElementById('dnBtn'), order = ['auto', 'ngay', 'chieu', 'dem'];
+        let m = 'auto'; try { m = localStorage.getItem('dn') || 'auto'; } catch {}
+        const apply = () => { const ph = m === 'auto' ? phaseByClock() : m; env.userData.setPhase(ph); btn.textContent = PHASES[ph].label + (m === 'auto' ? ' · tự động' : ''); };
+        btn.hidden = false; apply(); setInterval(() => m === 'auto' && apply(), 600000);
+        btn.onclick = () => { m = order[(order.indexOf(m) + 1) % order.length]; try { localStorage.setItem('dn', m); } catch {} apply(); };
+        // Thời tiết: 'auto' = thời tiết thật ở TP.HCM (Open-Meteo), bấm để đổi tay
+        const wb = document.getElementById('wxBtn'), wo = ['auto', ...Object.keys(WEATHERS)];
+        let w = 'auto', real = 'quang'; try { w = localStorage.getItem('wx') || 'auto'; } catch {}
+        const wapply = () => { const k = w === 'auto' ? real : w; env.userData.setWeather(k); wb.textContent = WEATHERS[k] + (w === 'auto' ? ' · thật' : ''); };
+        const fetchReal = () => realWeather().then(k => { real = k; wapply(); }).catch(() => {});
+        wb.hidden = false; wapply(); fetchReal(); setInterval(fetchReal, 1800000);
+        wb.onclick = () => { w = wo[(wo.indexOf(w) + 1) % wo.length]; try { localStorage.setItem('wx', w); } catch {} wapply(); };
+      } catch (e) { console.warn('xianxia', e); }
       Object.assign(head.controls, { enableRotate: true, minPolarAngle: .35, maxPolarAngle: 1.75, rotateSpeed: .6 }); // kéo để xoay 360°, không chui dưới đất
       node.classList.add('ready'); document.getElementById('call').classList.add('has3d');
       idleCute();
