@@ -102,6 +102,8 @@
   #avatar.ready ~ #callAva { display:none; }
   #call #dnBtn { position:absolute; top:calc(14px + env(safe-area-inset-top)); right:14px; z-index:2; border:0; border-radius:99px; padding:7px 13px; background:#0007; color:#fff; font-weight:700; font-size:14px; }
   #call #wxBtn { position:absolute; top:calc(54px + env(safe-area-inset-top)); right:14px; z-index:2; border:0; border-radius:99px; padding:7px 13px; background:#0007; color:#fff; font-weight:700; font-size:14px; }
+  #call #kvSel { position:absolute; top:calc(94px + env(safe-area-inset-top)); right:14px; z-index:2; border:0; border-radius:99px; padding:7px 13px; background:#0007; color:#fff; font-weight:700; font-size:14px; appearance:none; }
+  #call #kvSel option { color:#000; }
   #avaCredit { font-size:11px; opacity:.7; background:#0006; border-radius:8px; padding:1px 8px; }
 </style>
 </head>
@@ -117,6 +119,7 @@
   <div id="avatar"></div>
   <button id="dnBtn" hidden></button>
   <button id="wxBtn" hidden></button>
+  <select id="kvSel" hidden aria-label="Khu vực thời tiết"></select>
   <img id="callAva" src="icon-512.png" alt="Sam">
   <h2>Sam</h2>
   <div id="callStatus">Bấm Gọi để nói chuyện bằng giọng nói</div>
@@ -696,7 +699,7 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catc
 // Không tải được (máy yếu, lỗi WebGL) thì Avatar.active = false và cuộc gọi tự phát giọng như cũ, hiện ảnh tĩnh.
 import { TalkingHead } from 'talkinghead';
 import { HeadAudio } from 'https://cdn.jsdelivr.net/gh/met4citizen/HeadAudio@main/dist/headaudio.min.mjs';
-import { buildXianxia, PHASES, phaseByClock, WEATHERS, realWeather } from './xianxia.mjs';
+import { buildXianxia, PHASES, phaseByClock, WEATHERS, realWeather, REGIONS, SEASONS, seasonOf } from './xianxia.mjs';
 import { playMocap, preloadMocap } from './mocap.mjs';
 const HA = 'https://cdn.jsdelivr.net/gh/met4citizen/HeadAudio@main/dist/';
 const GLB = 'sam.glb'; // nhân vật David tự nặn trong VRoid (tools/sam-david.vrm), chuyển bằng tools/vroid-to-talkinghead-giu-mau.py
@@ -769,13 +772,17 @@ window.Avatar = {
         const apply = () => { const ph = m === 'auto' ? phaseByClock() : m; env.userData.setPhase(ph); btn.textContent = PHASES[ph].label + (m === 'auto' ? ' · tự động' : ''); };
         btn.hidden = false; apply(); setInterval(() => m === 'auto' && apply(), 600000);
         btn.onclick = () => { m = order[(order.indexOf(m) + 1) % order.length]; try { localStorage.setItem('dn', m); } catch {} apply(); };
-        // Thời tiết: 'auto' = thời tiết thật ở TP.HCM (Open-Meteo), bấm để đổi tay
-        const wb = document.getElementById('wxBtn'), wo = ['auto', ...Object.keys(WEATHERS)];
-        let w = 'auto', real = 'quang'; try { w = localStorage.getItem('wx') || 'auto'; } catch {}
-        const wapply = () => { const k = w === 'auto' ? real : w; env.userData.setWeather(k); wb.textContent = WEATHERS[k] + (w === 'auto' ? ' · thật' : ''); };
-        const fetchReal = () => realWeather().then(k => { real = k; wapply(); }).catch(() => {});
-        wb.hidden = false; wapply(); fetchReal(); setInterval(fetchReal, 1800000);
+        // Khu vực → thời tiết thật theo dự báo (Open-Meteo) + mùa theo khí hậu vùng; nút thời tiết bấm để đổi tay
+        const wb = document.getElementById('wxBtn'), rs = document.getElementById('kvSel'), wo = ['auto', ...Object.keys(WEATHERS)];
+        let w = 'auto', real = 'quang', kv = 'hcm'; try { w = localStorage.getItem('wx') || 'auto'; kv = localStorage.getItem('kv') || 'hcm'; } catch {}
+        if (!REGIONS[kv]) kv = 'hcm';
+        rs.innerHTML = Object.entries(REGIONS).map(([k, [n]]) => `<option value="${k}">📍 ${n}</option>`).join(''); rs.value = kv;
+        const wapply = () => { const k = w === 'auto' ? real : w, se = seasonOf(kv); env.userData.setSeason(se); env.userData.setWeather(k);
+          wb.textContent = WEATHERS[k] + (w === 'auto' ? ' · thật' : '') + ' · ' + SEASONS[se].label; };
+        const fetchReal = () => realWeather(kv).then(k => { real = k; wapply(); }).catch(() => {});
+        wb.hidden = rs.hidden = false; wapply(); fetchReal(); setInterval(fetchReal, 1800000);
         wb.onclick = () => { w = wo[(wo.indexOf(w) + 1) % wo.length]; try { localStorage.setItem('wx', w); } catch {} wapply(); };
+        rs.onchange = () => { kv = rs.value; try { localStorage.setItem('kv', kv); } catch {} wapply(); fetchReal(); };
       } catch (e) { console.warn('xianxia', e); }
       Object.assign(head.controls, { enableRotate: true, minPolarAngle: .35, maxPolarAngle: 1.75, rotateSpeed: .6 }); // kéo để xoay 360°, không chui dưới đất
       node.classList.add('ready'); document.getElementById('call').classList.add('has3d');

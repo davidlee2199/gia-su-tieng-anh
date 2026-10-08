@@ -179,7 +179,13 @@ export function buildXianxia(scene) {
   const N = 240, pp = new Float32Array(N * 3), drift = [];
   for (let i = 0; i < N; i++) { pp[i * 3] = rnd(-6, 6); pp[i * 3 + 1] = rnd(-1, 5); pp[i * 3 + 2] = rnd(-6, 6); drift.push(rnd(0, 6.28)); }
   const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.BufferAttribute(pp, 3));
-  env.add(new THREE.Points(pg, new THREE.PointsMaterial({ map: glow('rgba(255,170,200,1)', 32), size: .09, transparent: true, depthWrite: false, color: 0xffd0e0 })));
+  const petals = new THREE.Points(pg, new THREE.PointsMaterial({ map: glow('rgba(255,255,255,1)', 32), size: .09, transparent: true, depthWrite: false, color: 0xffb8cc }));
+  env.add(petals);
+  env.userData.seasonTint = new THREE.Color(1, 1, 1);
+  env.userData.setSeason = k => { // mùa: đổi thứ rơi quanh Sam + ám màu tranh nền
+    const S = SEASONS[k]; petals.visible = S.petal != null; if (S.petal != null) petals.material.color.set(S.petal);
+    env.userData.seasonTint.setRGB(...S.tint); env.userData.retint?.();
+  };
 
   env.traverse(o => { if (o.material) o.material.toneMapped = false; });
   painting(scene, env, far);
@@ -243,14 +249,14 @@ function painting(scene, env, far) {
     const d = domes[name] = { group: new THREE.Group() }; env.add(d.group);
     new THREE.TextureLoader().load(`bg/${name}.jpg`, tex => {
       tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
-      d.img = dome(d.group, tex, tex.image.width, tex.image.height); hideFar(); show(cur);
+      d.img = dome(d.group, tex, tex.image.width, tex.image.height); hideFar(); show(cur); env.userData.retint?.();
     }, undefined, e => console.warn('tranh nền', name, e));
     const v = document.createElement('video');
     Object.assign(v, { src: `bg/${name}.mp4`, muted: true, loop: true, playsInline: true, crossOrigin: 'anonymous', preload: 'auto' });
     v.setAttribute('playsinline', ''); v.setAttribute('muted', '');
     v.addEventListener('loadeddata', () => {
       const tex = new THREE.VideoTexture(v); tex.colorSpace = THREE.SRGBColorSpace;
-      dome(d.group, tex, v.videoWidth, v.videoHeight); if (d.img) d.img.visible = false; hideFar();
+      dome(d.group, tex, v.videoWidth, v.videoHeight); if (d.img) d.img.visible = false; hideFar(); env.userData.retint?.();
       d.video = v; if (cur === name) v.play().catch(() => document.addEventListener('pointerdown', () => v.play().catch(() => {}), { once: true }));
     }, { once: true });
     v.addEventListener('error', () => {}, { once: true }); // chưa có video buổi này: dùng ảnh
@@ -267,6 +273,27 @@ function painting(scene, env, far) {
 export const WEATHERS = {
   quang: '☀️ Quang', mua: '🌧️ Mưa', bao: '⛈️ Giông', tuyet: '❄️ Tuyết', suong: '🌫️ Sương mù',
 };
+// Khu vực (Việt Nam) + kiểu khí hậu: bắc = 4 mùa, trung/nam = mùa khô / mùa mưa
+export const REGIONS = {
+  hn: ['Hà Nội', 21.03, 105.85, 'bac'], sapa: ['Sa Pa', 22.34, 103.84, 'bac'], hp: ['Hải Phòng', 20.86, 106.68, 'bac'],
+  hue: ['Huế', 16.46, 107.59, 'trung'], dng: ['Đà Nẵng', 16.05, 108.2, 'trung'], nt: ['Nha Trang', 12.24, 109.19, 'trung'],
+  dl: ['Đà Lạt', 11.94, 108.44, 'nam'], hcm: ['TP.HCM', 10.78, 106.7, 'nam'], ct: ['Cần Thơ', 10.03, 105.78, 'nam'], pq: ['Phú Quốc', 10.22, 103.96, 'nam'],
+};
+// petal = màu thứ rơi quanh Sam (null = không rơi), tint = ám màu tranh nền
+export const SEASONS = {
+  xuan: { label: '🌸 Xuân', petal: 0xffb8cc, tint: [1, .97, .98] },
+  ha: { label: '🌺 Hạ', petal: 0xff4a30, tint: [1, 1, .94] },      // hoa phượng
+  thu: { label: '🍂 Thu', petal: 0xffa040, tint: [1, .9, .78] },     // lá vàng
+  dong: { label: '🧣 Đông', petal: null, tint: [.86, .91, 1] },
+  kho: { label: '🌼 Mùa khô', petal: 0xffd84a, tint: [1, .96, .88] }, // hoa mai / nắng vàng
+  mua: { label: '🌿 Mùa mưa', petal: 0x7fd07a, tint: [.93, 1, .95] },  // lá xanh
+};
+export function seasonOf(region, m = new Date().getMonth() + 1) {
+  const z = REGIONS[region]?.[3] || 'nam';
+  if (z === 'bac') return m >= 2 && m <= 4 ? 'xuan' : m >= 5 && m <= 7 ? 'ha' : m >= 8 && m <= 10 ? 'thu' : 'dong';
+  if (z === 'trung') return m >= 9 && m <= 12 ? 'mua' : 'kho';
+  return m >= 5 && m <= 11 ? 'mua' : 'kho';
+}
 // Mã thời tiết WMO (Open-Meteo) → kiểu của mình
 export function wmoToWeather(code) {
   if (code >= 95) return 'bao';
@@ -275,9 +302,10 @@ export function wmoToWeather(code) {
   if (code === 45 || code === 48) return 'suong';
   return 'quang';
 }
-// Thời tiết thật tại TP.HCM (không cần khoá, không xin quyền vị trí)
-export async function realWeather(lat = 10.78, lon = 106.7) {
-  const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=weather_code`);
+// Thời tiết thật theo dự báo của khu vực đã chọn (Open-Meteo: không cần khoá, không xin quyền vị trí)
+export async function realWeather(region = 'hcm') {
+  const [, lat, lon] = REGIONS[region] || REGIONS.hcm;
+  const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=weather_code&timezone=Asia%2FBangkok`);
   return wmoToWeather((await r.json()).current.weather_code);
 }
 
@@ -317,13 +345,16 @@ export function setupWeather(scene, env) {
     const hit = (k) => { flash.style.opacity = k; lights.forEach(([o, i]) => o.intensity = i * (1 + k * 4)); };
     hit(.75); setTimeout(() => hit(0), 90); setTimeout(() => hit(.5), 180); setTimeout(() => { hit(0); }, 300);
   }
+  env.userData.retint = () => {
+    const dim = { quang: 1, mua: .72, bao: .55, tuyet: .9, suong: .8 }[kind];
+    const tint = { quang: 0xffffff, mua: 0xc8d2e6, bao: 0xa9b3cc, tuyet: 0xe6eeff, suong: 0xe8e6ee }[kind];
+    domes().forEach(m => m.material.color.set(tint).multiplyScalar(dim).multiply(env.userData.seasonTint));
+  };
   env.userData.setWeather = k => {
     kind = k;
     rain.visible = k === 'mua' || k === 'bao'; rain.material.opacity = k === 'bao' ? .85 : .7;
     snow.visible = k === 'tuyet'; mist.visible = k === 'suong';
-    const dim = { quang: 1, mua: .72, bao: .55, tuyet: .9, suong: .8 }[k];
-    const tint = { quang: 0xffffff, mua: 0xc8d2e6, bao: 0xa9b3cc, tuyet: 0xe6eeff, suong: 0xe8e6ee }[k];
-    domes().forEach(m => m.material.color.set(tint).multiplyScalar(dim));
+    env.userData.retint();
     nextBolt = performance.now() + 2500;
   };
 
