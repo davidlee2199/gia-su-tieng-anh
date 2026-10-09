@@ -849,7 +849,7 @@ window.Avatar = {
         setInterval(() => m === 'auto' && apply(), 600000); setInterval(fetchReal, 1800000);
         if (!get('dh', '')) { const d = $$('dragHint'); d.hidden = false; put('dh', '1'); setTimeout(() => d.hidden = true, 6500); }
       } catch (e) { console.warn('xianxia', e); }
-      Object.assign(head.controls, { enableRotate: true, minPolarAngle: .35, maxPolarAngle: 1.75, rotateSpeed: .6 }); // kéo để xoay 360°, không chui dưới đất
+      Object.assign(head.controls, { enableRotate: true, minPolarAngle: 1.25, maxPolarAngle: 1.62, rotateSpeed: .6 }); // kéo để xoay 360°; nghiêng vừa đủ để không lộ mép trên/dưới của vòm tranh (±26°)
       node.classList.add('ready'); document.getElementById('call').classList.add('has3d');
       idleCute();
       preloadMocap(head, ['bye_feminine_001', 'bow_feminine_001', 'guide_feminine_001', 'respond_normal_001']);

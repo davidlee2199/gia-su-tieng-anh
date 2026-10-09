@@ -257,7 +257,9 @@ const TINT = new THREE.Color(1, 1, 1); // ám màu thời tiết × mùa đang �
 const LAMPU = { uLamp: { value: 0 }, uL1: { value: new THREE.Vector3(0, -9, 0) }, uL2: { value: new THREE.Vector3(0, -9, 0) } };
 const PLAT = [], WHITE = new THREE.Color(1, 1, 1); // vật liệu bục: ám theo vòm nhưng nhẹ hơn (đèn lồng vẫn sáng)
 function dome(env, tex, w, h) {
-  const R = 600, H = Math.PI * R * h / w; // giữ đúng tỉ lệ khung trên nửa vòng
+  // 4 bản × 90° (trước đây 2 × 180°): mỗi điểm ảnh tranh/video trải hẹp lại một nửa → nét gấp đôi.
+  // Bản sau lưng Sam đọc đúng chiều (flip), bản kề lật gương xen kẽ nên mép nào cũng nối liền.
+  const R = 600, ARC = Math.PI / 2, H = ARC * R * h / w; // giữ đúng tỉ lệ khung trên mỗi cung 90°
   const half = (start, flip) => {
     let t = tex;
     if (flip) { t = tex.clone(); t.wrapS = THREE.RepeatWrapping; t.repeat.x = -1; t.offset.x = 1; t.needsUpdate = true; }
@@ -273,11 +275,11 @@ function dome(env, tex, w, h) {
             c *= L / max(dot(c, W), .02);                          // giữ độ sáng gốc
             diffuseColor.rgb = mix(diffuseColor.rgb, min(c, vec3(1.)), hm); } }`);
     };
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(R, R, H, 64, 1, true, start, Math.PI), mat);
-    m.position.y = 1.1 + H * .12; m.renderOrder = -1; // nâng: lộ đảo bay, thác, biển mây sau lưng Sam
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(R, R, H, 32, 1, true, start, ARC), mat);
+    m.position.y = 1.1 - 30; m.renderOrder = -1; // tâm tranh hơi dưới tầm mắt: phủ khoảng -29°..+23° (camera bị giới hạn nghiêng trong khoảng đó)
     return m;
   };
-  const g = new THREE.Group(); g.add(half(Math.PI * .5, true), half(Math.PI * 1.5, false)); env.add(g);
+  const g = new THREE.Group(); [0, 1, 2, 3].forEach(i => g.add(half(Math.PI * .75 + i * ARC, i % 2 === 0))); env.add(g);
   return g;
 }
 
@@ -322,8 +324,9 @@ function painting(scene, env, far) {
     }, undefined, e => console.warn('tranh nền', name, e));
   }
   function loadVid(name) {
+    // ?v= trong đường dẫn: đổi mỗi lần thay video để điện thoại không giữ bản cũ
     const key = 'v:' + name; if (domes[key]) return; const d = slot(key), v = document.createElement('video');
-    Object.assign(v, { src: `bg/v-${name}.mp4`, muted: true, loop: true, playsInline: true, crossOrigin: 'anonymous', preload: 'auto' });
+    Object.assign(v, { src: `bg/v-${name}.mp4?v=1080`, muted: true, loop: true, playsInline: true, crossOrigin: 'anonymous', preload: 'auto' });
     v.setAttribute('playsinline', ''); v.setAttribute('muted', '');
     v.addEventListener('loadeddata', () => {
       const tex = new THREE.VideoTexture(v); tex.colorSpace = THREE.SRGBColorSpace;
