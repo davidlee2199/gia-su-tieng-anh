@@ -3,6 +3,7 @@
 // Gồm: trời hoàng hôn, trăng, sao · 5 lớp núi nhạt dần vào sương · biển mây · đảo bay + thác nước + lầu các
 // · đài ngọc có lan can + cây hoa đào · hạc bay · đèn lồng · cánh hoa rơi. Xoay 360° chỗ nào cũng có cảnh.
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 const C = (h) => new THREE.Color(h);
@@ -162,12 +163,15 @@ export function buildXianxia(scene) {
     if (pav) { const p = pavilion(r * .55); p.position.y = r * .09; g.add(p); }
   });
 
-  // Đài ngọc + lan can đỏ + cây hoa đào cạnh Sam
-  const jade = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.75, .25, 48), basic({ color: 0xa8dcc8 })); jade.position.y = -.125; env.add(jade);
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(1.62, .035, 6, 64), basic({ color: 0xe9cf7a })); rim.rotation.x = Math.PI / 2; rim.position.y = .005; env.add(rim);
-  const rail = basic({ color: 0xb8323a });
-  for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; if (Math.sin(a) > .35) continue; // chừa lối phía trước (phía máy quay, +Z)
-    const p = new THREE.Mesh(new THREE.CylinderGeometry(.03, .03, .45, 6), rail); p.position.set(Math.cos(a) * 1.55, .22, Math.sin(a) * 1.55); env.add(p); }
+  // Bục ngọc sen (Magnific: concept → 3D, bg/buc.glb ~19k mặt, texture 1024). Chưa tải xong thì tạm dùng đĩa ngọc trơn.
+  const jade = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.75, .25, 48), basic({ color: 0xdfeee8 })); jade.position.y = -.125; env.add(jade);
+  new GLTFLoader().load('bg/buc.glb', g => {
+    const m = g.scene; m.scale.setScalar(1.5); m.rotation.y = Math.PI; // bậc thang ra phía máy quay, lan can + đèn lồng sau lưng Sam
+    m.position.y = .063 * 1.5; // mặt bục (y -0.063 trong mô hình) = chỗ Sam đứng
+    m.traverse(o => { if (o.isMesh) { const map = o.material.map; map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 4;
+      o.material = new THREE.MeshBasicMaterial({ map, toneMapped: false, side: THREE.DoubleSide }); PLAT.push(o.material); } });
+    env.add(m); jade.visible = false; env.userData.retint?.();
+  }, undefined, e => console.warn('bục', e));
   const tree = sakura(); tree.position.set(-2.2, -.1, -3.0); tree.scale.setScalar(1.5); addFar(tree);
   const tree2 = sakura(); tree2.position.set(2.6, -.1, -3.6); tree2.scale.setScalar(1.3); tree2.rotation.y = 2; addFar(tree2); // có tranh thì ẩn (tranh đã có hoa đào)
   const halo = new THREE.Mesh(new THREE.CircleGeometry(3.4, 48), basic({ map: glow('rgba(170,255,225,0.5)'), transparent: true, depthWrite: false })); halo.rotation.x = -Math.PI / 2; halo.position.y = -.3; env.add(halo);
@@ -240,6 +244,7 @@ export function buildXianxia(scene) {
 // nửa sau lưng Sam là bản lật (nhìn từ trong vòm ảnh bị ngược), nửa kia là bản gốc → hai mép nối liền.
 // Vòm nhận cả ảnh lẫn video (VideoTexture) — xem painting() bên dưới.
 const TINT = new THREE.Color(1, 1, 1); // ám màu thời tiết × mùa đang áp lên vòm
+const PLAT = [], WHITE = new THREE.Color(1, 1, 1); // vật liệu bục: ám theo vòm nhưng nhẹ hơn (đèn lồng vẫn sáng)
 function dome(env, tex, w, h) {
   const R = 600, H = Math.PI * R * h / w; // giữ đúng tỉ lệ khung trên nửa vòng
   const half = (start, flip) => {
@@ -406,7 +411,7 @@ export function setupWeather(scene, env) {
     // tranh tĩnh: ám màu mùa · video: đã đúng mùa, chỉ ám màu theo buổi (video quay ban ngày)
     const by = env.userData.videoOn ? new THREE.Color(...PHASE_MUL[env.userData.phase || 'ngay']) : env.userData.seasonTint;
     const to = new THREE.Color(tint).multiplyScalar(dim).multiply(by), from = TINT.clone();
-    tween('tint', 2.5, x => { TINT.lerpColors(from, to, x); domes().forEach(m => m.material.color.copy(TINT)); });
+    tween('tint', 2.5, x => { TINT.lerpColors(from, to, x); domes().forEach(m => m.material.color.copy(TINT)); PLAT.forEach(m => m.color.copy(TINT).lerp(WHITE, .25)); });
   };
   let mistO = 0;
   const fade = (key, from, to, set, sec = 1.8) => tween(key, sec, x => set(from + (to - from) * x));
