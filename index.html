@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#1d4ed8">
+<meta name="theme-color" content="#6e1230">
 <title>Sam · luyện IELTS</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
@@ -12,143 +12,185 @@
   "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
   "talkinghead":"https://cdn.jsdelivr.net/gh/met4citizen/TalkingHead@1.7/modules/talkinghead.mjs"}}</script>
 <style>
-  :root { --main:#1d4ed8; --bg:#f4f6fb; --ai:#fff; --me:#dbe7ff; --fix:#fff4e0; --ink:#1a1f2b; --mute:#6b7280; --ok:#15803d; --line:#e5e7eb; }
-  * { box-sizing:border-box; }
+  /* Màu theo Sam: đỏ rượu (tóc) + tím đêm (tiên cảnh) */
+  :root { --main:#9b1c3c; --main-d:#6e1230; --bg:#f6f1f4; --ai:#fff; --me:#fbe3ea; --fix:#fff5e3; --tip:#eaf2ff; --ink:#1f1722; --mute:#6f6573; --ok:#15803d; --line:#ebe1e6;
+          --glass:rgba(22,12,30,.5); --glass-b:rgba(255,255,255,.16); }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  [hidden] { display:none !important; }
   body { margin:0; font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink);
          height:100dvh; display:flex; flex-direction:column; }
-  header { background:var(--main); color:#fff; padding:10px 14px; display:flex; align-items:center; gap:8px; }
-  header h1 { font-size:17px; margin:0; flex:1; }
-  header .ava { width:40px; height:40px; border-radius:50%; border:2px solid #fff; }
-  header h1 small { display:block; font-size:12px; font-weight:400; opacity:.85; }
-  #level { background:#fff; color:var(--main); border:0; border-radius:99px; padding:3px 11px; font-weight:700; font-size:13px; }
-  #openSet { background:none; border:0; color:#fff; font-size:20px; padding:4px; }
-  nav { display:flex; background:#fff; border-bottom:1px solid var(--line); }
-  nav button { flex:1; border:0; background:none; padding:9px; font-size:15px; font-weight:600; color:var(--mute); border-bottom:3px solid transparent; }
-  nav button.on { color:var(--main); border-bottom-color:var(--main); }
+  button { font:inherit; cursor:pointer; }
+  .ic { width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex:none; }
+  .glass { background:var(--glass); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); border:1px solid var(--glass-b); }
+
+  header { background:linear-gradient(120deg,#6e1230,#2e1645); color:#fff; padding:calc(10px + env(safe-area-inset-top)) 12px 10px; display:flex; align-items:center; gap:8px; }
+  header .ava { width:40px; height:40px; border-radius:50%; border:2px solid #ffffffcc; object-fit:cover; }
+  header h1 { font-size:17px; margin:0; flex:1; min-width:0; line-height:1.25; }
+  header h1 small { display:block; font-size:12px; font-weight:400; opacity:.8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #callBtn { display:flex; align-items:center; gap:5px; background:#22c55e; border:0; color:#fff; border-radius:99px; padding:6px 12px 6px 10px; font-weight:700; font-size:14px; box-shadow:0 2px 8px #22c55e55; }
+  #callBtn .ic { width:16px; height:16px; }
+  #level { background:#ffffff1f; color:#fff; border:1px solid #ffffff4d; border-radius:99px; padding:5px 11px; font-weight:700; font-size:13px; white-space:nowrap; }
+  #openSet { background:none; border:0; color:#fff; padding:6px; display:grid; place-items:center; }
+  nav { display:flex; gap:6px; padding:8px 12px; background:#fff; border-bottom:1px solid var(--line); }
+  nav button { flex:1; display:flex; align-items:center; justify-content:center; gap:6px; border:0; background:none; padding:8px; font-size:15px; font-weight:600; color:var(--mute); border-radius:12px; }
+  nav button .ic { width:18px; height:18px; }
+  nav button.on { color:var(--main); background:var(--me); }
   .view { flex:1; display:flex; flex-direction:column; min-height:0; }
-  .view[hidden] { display:none; }
-  #chat { flex:1; overflow-y:auto; padding:10px 12px 16px; }
-  .msg { max-width:86%; margin:6px 0; padding:9px 12px; border-radius:16px; white-space:pre-wrap; word-wrap:break-word; }
-  .ai { background:var(--ai); box-shadow:0 1px 2px #0001; border-bottom-left-radius:4px; }
-  .me { background:var(--me); margin-left:auto; border-bottom-right-radius:4px; }
-  .cmd { margin:10px auto; text-align:center; color:var(--mute); font-size:13px; }
+
+  #chat { flex:1; overflow-y:auto; padding:12px 12px 18px; }
+  .msg { max-width:86%; margin:8px 0; padding:10px 13px; border-radius:18px; white-space:pre-wrap; word-wrap:break-word; }
+  .ai { background:var(--ai); border:1px solid var(--line); border-bottom-left-radius:6px; box-shadow:0 1px 3px #3b0a1f0d; }
+  .me { background:var(--me); margin-left:auto; border-bottom-right-radius:6px; }
+  .cmd { margin:12px auto; text-align:center; color:var(--mute); font-size:13px; }
   .say { color:var(--main); font-weight:600; }
-  .fix { display:block; background:var(--fix); border-radius:8px; padding:4px 8px; margin:4px 0 0; font-size:14.5px; }
-  .ai .play { border:0; background:none; font-size:17px; padding:0 0 0 4px; }
-  #modebar { display:flex; align-items:center; gap:8px; background:#eef3ff; color:var(--main); padding:6px 12px; font-size:13.5px; font-weight:600; border-top:1px solid var(--line); }
-  #modebar[hidden] { display:none; }
+  .fix { display:block; background:var(--fix); border-left:3px solid #f59e0b; border-radius:8px; padding:5px 9px; margin:6px 0 2px; font-size:14.5px; }
+  .fix.tip { background:var(--tip); border-left-color:#3b82f6; margin:0 0 6px; }
+  .ai .play { display:inline-grid; place-items:center; width:30px; height:30px; margin-top:6px; border:0; border-radius:50%; background:var(--me); font-size:14px; }
+  #modebar { display:flex; align-items:center; gap:8px; background:var(--me); color:var(--main); padding:7px 12px; font-size:13.5px; font-weight:600; border-top:1px solid var(--line); }
   #modebar span { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  #modebar button { border:1px solid var(--main); background:#fff; color:var(--main); border-radius:8px; padding:3px 10px; font-weight:600; white-space:nowrap; }
-  footer { display:flex; gap:6px; padding:8px 10px calc(8px + env(safe-area-inset-bottom)); background:#fff; border-top:1px solid var(--line); }
-  #text { flex:1; border:1px solid #d1d5db; border-radius:12px; padding:10px; font:inherit; resize:none; height:46px; }
+  #modebar button { border:1px solid var(--main); background:#fff; color:var(--main); border-radius:99px; padding:3px 12px; font-weight:600; white-space:nowrap; }
+  footer { display:flex; align-items:flex-end; gap:8px; padding:8px 10px calc(8px + env(safe-area-inset-bottom)); background:#fff; border-top:1px solid var(--line); }
+  #text { flex:1; border:1px solid var(--line); background:var(--bg); border-radius:23px; padding:11px 16px; font:inherit; resize:none; height:46px; outline:none; transition:height .15s; scrollbar-width:none; }
+  #text:focus { border-color:#d9a3b3; background:#fff; }
   #text:focus, #text.long { height:110px; }
-  footer button { border:0; border-radius:12px; min-width:48px; font-size:20px; background:var(--main); color:#fff; }
-  #mic.on { background:#dc2626; }
-  #road { overflow-y:auto; padding:12px 12px 24px; }
-  .card { background:#fff; border-radius:14px; padding:12px 14px; margin-bottom:12px; box-shadow:0 1px 2px #0001; }
-  .card h2 { font-size:16px; margin:0 0 6px; }
+  footer button { display:grid; place-items:center; width:46px; height:46px; flex:none; border:0; border-radius:50%; background:var(--main); color:#fff; }
+  #mic { background:var(--me); color:var(--main); }
+  #mic.on { background:#dc2626; color:#fff; animation:pulse 1s ease-in-out infinite; }
+
+  #road { overflow-y:auto; padding:12px 12px 28px; }
+  .card { background:#fff; border-radius:18px; padding:14px 16px; margin-bottom:12px; border:1px solid var(--line); box-shadow:0 1px 3px #3b0a1f0d; }
+  .card h2 { font-size:16px; margin:0 0 8px; }
   .stats { display:flex; gap:8px; text-align:center; }
-  .stats div { flex:1; background:var(--bg); border-radius:10px; padding:8px 4px; }
-  .stats b { display:block; font-size:22px; color:var(--main); }
+  .stats div { flex:1; background:linear-gradient(160deg,#fff,var(--me)); border:1px solid var(--line); border-radius:14px; padding:10px 4px; }
+  .stats b { display:block; font-size:24px; color:var(--main); line-height:1.3; }
   .stats span { font-size:12px; color:var(--mute); }
-  .acts { display:grid; grid-template-columns:repeat(2,1fr); gap:6px; margin-top:10px; }
-  .acts button { border:1px solid var(--main); background:#fff; color:var(--main); border-radius:10px; padding:8px 4px; font-size:14px; font-weight:600; }
-  .acts button.pri { background:var(--main); color:#fff; }
+  .acts { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:12px; }
+  .acts button { border:1px solid var(--main); background:#fff; color:var(--main); border-radius:12px; padding:10px 4px; font-size:14px; font-weight:600; }
+  .acts button.pri { background:linear-gradient(135deg,var(--main),var(--main-d)); color:#fff; border-color:transparent; }
   .chips span { display:inline-block; background:var(--fix); border-radius:99px; padding:2px 10px; margin:3px 4px 0 0; font-size:13px; }
-  .bar { height:8px; background:var(--bg); border-radius:99px; overflow:hidden; margin:4px 0 8px; }
-  .bar i { display:block; height:100%; background:var(--main); }
-  .unit { display:flex; align-items:center; gap:10px; padding:9px 0; border-top:1px solid var(--line); }
+  .bar { height:8px; background:var(--bg); border-radius:99px; overflow:hidden; margin:6px 0 8px; }
+  .bar i { display:block; height:100%; background:linear-gradient(90deg,var(--main),#e05a7a); }
+  .unit { display:flex; align-items:center; gap:10px; padding:10px 0; border-top:1px solid var(--line); }
   .unit .t { flex:1; min-width:0; }
   .unit .t b { display:block; font-size:15px; }
   .unit .t small { color:var(--mute); font-size:12.5px; }
   .unit .s { font-weight:700; color:var(--ok); white-space:nowrap; }
-  .unit button { border:1px solid var(--main); background:#fff; color:var(--main); border-radius:8px; padding:5px 10px; font-weight:600; }
+  .unit button { border:1px solid var(--main); background:#fff; color:var(--main); border-radius:10px; padding:6px 12px; font-weight:600; }
   .unit.next button { background:var(--main); color:#fff; }
   .hint { color:var(--mute); font-size:13px; }
   .hist { font-size:13.5px; margin:4px 0; }
-  dialog { border:0; border-radius:14px; width:min(420px,92vw); }
+  dialog { border:0; border-radius:20px; width:min(420px,92vw); padding:20px; box-shadow:0 20px 60px #0005; color:var(--ink); }
+  dialog::backdrop { background:#1a0b1680; -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px); }
   dialog h3 { margin:0 0 8px; }
-  dialog label { display:block; margin:10px 0 4px; font-weight:600; font-size:14px; }
-  dialog input { width:100%; padding:9px; border:1px solid #d1d5db; border-radius:8px; font:inherit; }
-  .row { display:flex; gap:8px; margin-top:14px; }
-  .row button { flex:1; padding:10px; border-radius:10px; border:1px solid var(--main); background:#fff; color:var(--main); font-weight:600; }
-  .row button.pri { background:var(--main); color:#fff; }
-  #callBtn { background:#22c55e; border:0; color:#fff; border-radius:99px; padding:4px 12px; font-weight:700; font-size:14px; }
-  #call { position:fixed; inset:0; z-index:10; background:linear-gradient(160deg,#3b0764,#1e1b4b 60%,#0f172a); color:#fff;
-          display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:24px 20px calc(24px + env(safe-area-inset-bottom)); text-align:center; }
-  #call[hidden] { display:none; }
+  dialog label { display:block; margin:12px 0 4px; font-weight:600; font-size:14px; }
+  dialog input, dialog textarea { width:100%; padding:10px; border:1px solid var(--line); border-radius:10px; font:inherit; background:var(--bg); }
+  dialog textarea { font-size:14px; }
+  .row { display:flex; gap:8px; margin-top:16px; }
+  .row button { flex:1; padding:11px; border-radius:12px; border:1px solid var(--main); background:#fff; color:var(--main); font-weight:600; }
+  .row button.pri { background:linear-gradient(135deg,var(--main),var(--main-d)); color:#fff; border-color:transparent; }
+  .credit { font-size:11.5px; color:var(--mute); margin:14px 0 0; }
+
+  /* Màn gọi kiểu FaceTime: Sam 3D phủ cả màn, điều khiển nổi trên nền kính mờ */
+  #call { position:fixed; inset:0; z-index:10; background:radial-gradient(120% 80% at 50% 0%,#5b1a4a,#1e1033 55%,#0d0a18); color:#fff;
+          display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:calc(16px + env(safe-area-inset-top)) 16px calc(22px + env(safe-area-inset-bottom)); text-align:center; }
   #callAva { width:min(52vw,220px); aspect-ratio:1; border-radius:50%; object-fit:cover; border:4px solid #ffffff33; transition:box-shadow .2s, transform .2s; }
   #callAva.listening { box-shadow:0 0 0 6px #22c55e88, 0 0 40px #22c55e55; }
   #callAva.speaking { box-shadow:0 0 0 8px #f472b6aa, 0 0 60px #f472b688; animation:pulse 1s ease-in-out infinite; }
   @keyframes pulse { 50% { transform:scale(1.04); } }
-  #call h2 { margin:0; font-size:26px; }
-  #callStatus { font-size:15px; opacity:.85; min-height:22px; }
-  .cap { font-size:14.5px; opacity:.9; max-width:520px; min-height:20px; max-height:4.6em; overflow:hidden; }
-  #callSam { color:#fbcfe8; }
-  .callBtns[hidden] { display:none; }
-  .callBtns { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-top:8px; }
-  .callBtns button { border:0; border-radius:99px; padding:12px 18px; font-size:15px; font-weight:700; color:#fff; background:#ffffff26; }
-  .callBtns .go { background:#22c55e; font-size:18px; padding:16px 30px; }
-  .callBtns .end { background:#ef4444; }
-  .callBtns .on { background:#f59e0b; }
-  #call .hint { color:#e9d5ff; max-width:420px; }
-  #avatar { position:absolute; inset:0; display:none; } /* mặt Sam phủ cả màn hình như FaceTime */
+  #call h2 { margin:0; font-size:28px; letter-spacing:.5px; }
+  #callStatus { font-size:14px; padding:4px 12px; border-radius:99px; }
+  #callStatus:empty, #call .cap:empty { display:none; }
+  .cap { font-size:15px; line-height:1.4; max-width:min(520px,100%); padding:6px 12px; border-radius:14px; max-height:5.4em; overflow:hidden; }
+  #callSam { color:#ffd6e7; }
+  .callBtns { display:flex; align-items:flex-start; justify-content:center; gap:24px; margin-top:8px; }
+  .cb { display:flex; flex-direction:column; align-items:center; gap:6px; border:0; background:none; color:#fff; font-size:12.5px; font-weight:700; padding:0; text-shadow:0 1px 2px #000, 0 0 8px #000c; }
+  .cb i { display:grid; place-items:center; width:58px; height:58px; border-radius:50%; transition:transform .1s; }
+  .cb:active i { transform:scale(.94); }
+  .cb .ic { width:24px; height:24px; }
+  .cb.go i { width:74px; height:74px; background:#22c55e; box-shadow:0 8px 24px #22c55e66; }
+  .cb.go .ic { width:30px; height:30px; }
+  .cb.end i { background:#ef4444; box-shadow:0 8px 24px #ef444466; }
+  .cb.end .ic { transform:rotate(135deg); }
+  .cb.on i { background:#f59e0b; border-color:transparent; }
+  #call .hint { color:#e9d5ff; max-width:420px; font-size:14px; }
+  #avatar { position:absolute; inset:0; display:none; }
+  #avatar.ready { display:block; }
+  #avatar.ready ~ #callAva { display:none; }
   #call > :not(#avatar) { position:relative; z-index:1; }
   #call.has3d { justify-content:flex-end; }
   #call.has3d h2, #call.has3d #callHint { display:none; }
-  #call.has3d .cap, #call.has3d #callStatus { background:#0008; border-radius:10px; padding:2px 10px; }
-  #call .cap:empty { display:none; }
-  #avatar.ready { display:block; }
-  #avatar.ready ~ #callAva { display:none; }
-  #call #dnBtn { position:absolute; top:calc(14px + env(safe-area-inset-top)); right:14px; z-index:2; border:0; border-radius:99px; padding:7px 13px; background:#0007; color:#fff; font-weight:700; font-size:14px; }
-  #call #wxBtn { position:absolute; top:calc(54px + env(safe-area-inset-top)); right:14px; z-index:2; border:0; border-radius:99px; padding:7px 13px; background:#0007; color:#fff; font-weight:700; font-size:14px; }
-  #call #kvSel { position:absolute; top:calc(94px + env(safe-area-inset-top)); right:14px; z-index:2; border:0; border-radius:99px; padding:7px 13px; background:#0007; color:#fff; font-weight:700; font-size:14px; appearance:none; }
-  #call #kvSel option { color:#000; }
-  #avaCredit { font-size:11px; opacity:.7; background:#0006; border-radius:8px; padding:1px 8px; }
+  #call > #callTop { position:absolute; z-index:3; top:calc(12px + env(safe-area-inset-top)); left:12px; right:12px; display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+  #call:not(.has3d) #samChip { visibility:hidden; }
+  .chip { display:flex; align-items:center; gap:7px; border-radius:99px; padding:7px 13px; color:#fff; font-weight:700; font-size:14px; white-space:nowrap; }
+  #samChip .dot { width:8px; height:8px; border-radius:50%; background:#a1a1aa; }
+  #call[data-st=listening] #samChip .dot { background:#22c55e; box-shadow:0 0 8px #22c55e; }
+  #call[data-st=speaking] #samChip .dot { background:#f472b6; box-shadow:0 0 8px #f472b6; }
+  #call[data-st=connecting] #samChip .dot { background:#facc15; }
+  #sceneWrap { position:relative; }
+  #scenePanel { position:absolute; top:46px; right:0; width:min(320px,calc(100vw - 24px)); border-radius:18px; padding:6px 14px 12px; text-align:left; }
+  #scenePanel h4 { margin:10px 0 6px; font-size:11.5px; text-transform:uppercase; letter-spacing:.07em; opacity:.75; }
+  .seg { display:flex; flex-wrap:wrap; gap:6px; }
+  .seg button { border:1px solid #ffffff33; background:#ffffff14; color:#fff; border-radius:99px; padding:5px 11px; font-size:13px; font-weight:600; }
+  .seg button.on { background:#fff; color:#3b1030; border-color:#fff; }
+  #kvSel { width:100%; border:1px solid #ffffff33; background:#ffffff14; color:#fff; border-radius:12px; padding:8px 10px; font:inherit; font-size:14px; font-weight:600; }
+  #kvSel option { color:#000; }
+  #seasonNote { margin:10px 0 0; font-size:12.5px; opacity:.8; }
+  #call > #dragHint { position:absolute; top:42%; left:50%; transform:translateX(-50%); padding:8px 14px; border-radius:99px; font-size:13.5px; pointer-events:none; animation:fadeout 6.5s forwards; }
+  @keyframes fadeout { 0%,75% { opacity:1; } 100% { opacity:0; } }
 </style>
 </head>
 <body>
 <header>
   <img class="ava" src="icon-192.png" alt="">
-  <h1>Sam<small>người bản xứ luyện IELTS cùng bạn</small></h1>
-  <button id="callBtn" aria-label="Gọi Sam">📞 Gọi</button>
-  <button id="level" aria-label="Xem band">chưa rõ</button>
-  <button id="openSet" aria-label="Cài đặt">⚙️</button>
+  <h1>Sam<small>bạn luyện IELTS</small></h1>
+  <button id="callBtn" aria-label="Gọi Sam"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>Gọi</button>
+  <button id="level" aria-label="Xem band">Band ?</button>
+  <button id="openSet" aria-label="Cài đặt"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg></button>
 </header>
-<div id="call">
+<div id="call" data-st="idle">
   <div id="avatar"></div>
-  <button id="dnBtn" hidden></button>
-  <button id="wxBtn" hidden></button>
-  <select id="kvSel" hidden aria-label="Khu vực thời tiết"></select>
+  <div id="callTop">
+    <div id="samChip" class="chip glass"><span class="dot"></span>Sam</div>
+    <div id="sceneWrap" hidden>
+      <button id="sceneBtn" class="chip glass" aria-expanded="false" aria-label="Cảnh: buổi, thời tiết, khu vực"></button>
+      <div id="scenePanel" class="glass" hidden>
+        <h4>Buổi</h4><div class="seg" id="segDn"></div>
+        <h4>Thời tiết</h4><div class="seg" id="segWx"></div>
+        <h4>Khu vực</h4><select id="kvSel" aria-label="Khu vực thời tiết"></select>
+        <p id="seasonNote"></p>
+      </div>
+    </div>
+  </div>
+  <div id="dragHint" class="glass" hidden>👆 Kéo màn hình để xoay 360°</div>
   <img id="callAva" src="icon-512.png" alt="Sam">
   <h2>Sam</h2>
-  <div id="callStatus">Bấm Gọi để nói chuyện bằng giọng nói</div>
-  <div class="cap" id="callYou"></div>
-  <div class="cap" id="callSam"></div>
+  <div id="callStatus" class="glass"></div>
+  <div class="cap glass" id="callYou"></div>
+  <div class="cap glass" id="callSam"></div>
   <div class="callBtns" id="callIdle">
-    <button class="go" id="callGo">📞 Gọi Sam</button>
-    <button id="callText">💬 Nhắn tin</button>
+    <button class="cb" id="callText"><i class="glass"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg></i>Nhắn tin</button>
+    <button class="cb go" id="callGo"><i><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></i>Gọi Sam</button>
+    <button class="cb" id="callRoad"><i class="glass"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></i>IELTS</button>
   </div>
   <div class="callBtns" id="callLive" hidden>
-    <button id="callMute">🔇 Tắt mic</button>
-    <button id="callExam">🎤 Thi thử Speaking</button>
-    <button class="end" id="callStop">📵 Kết thúc</button>
+    <button class="cb" id="callMute"><i class="glass"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg></i><span>Tắt mic</span></button>
+    <button class="cb end" id="callStop"><i><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></i>Kết thúc</button>
+    <button class="cb" id="callExam"><i class="glass"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg></i>Thi thử</button>
   </div>
-  <div id="avaCredit">👆 Kéo màn hình để xoay 360° · TalkingHead + HeadAudio (MIT) · nhân vật VRoid · mocap © Bandai Namco Research (CC BY-NC-ND)</div>
   <p class="hint" id="callHint">Nói tiếng Anh tự nhiên như gọi điện. Sam nghe giọng thật nên chấm được cả phát âm. Muốn chen ngang cứ nói, Sam sẽ dừng lại nghe.</p>
 </div>
 <nav>
-  <button data-view="vChat" class="on">💬 Nói chuyện</button>
-  <button data-view="vRoad">🎯 IELTS</button>
+  <button data-view="vChat" class="on"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>Nói chuyện</button>
+  <button data-view="vRoad"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>IELTS</button>
 </nav>
 
 <section id="vChat" class="view">
   <main id="chat"></main>
   <div id="modebar" hidden><span id="modeText"></span><button id="stop">Dừng</button></div>
   <footer>
-    <button id="mic" aria-label="Nói">🎤</button>
+    <button id="mic" aria-label="Nói"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg></button>
     <textarea id="text" placeholder="Nhắn cho Sam…"></textarea>
-    <button id="send" aria-label="Gửi">➤</button>
+    <button id="send" aria-label="Gửi"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button>
   </footer>
 </section>
 
@@ -162,13 +204,14 @@
   <input id="key" type="password" autocomplete="off" placeholder="Dán khoá vào đây">
   <p class="hint">Lấy khoá free tại <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a>. Khoá chỉ lưu trên máy này.</p>
   <label for="about">Sam nên biết gì về bạn</label>
-  <textarea id="about" rows="6" style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font:inherit;font-size:14px" placeholder="Bạn làm nghề gì, thích gì, muốn Sam nói chuyện kiểu nào… (chỉ lưu trên máy này)"></textarea>
+  <textarea id="about" rows="6" placeholder="Bạn làm nghề gì, thích gì, muốn Sam nói chuyện kiểu nào… (chỉ lưu trên máy này)"></textarea>
   <label for="model">Model</label>
   <input id="model">
   <div class="row">
     <button id="reset">Xoá hết dữ liệu</button>
     <button id="save" class="pri">Lưu</button>
   </div>
+  <p class="credit">Nhân vật VRoid · TalkingHead + HeadAudio (MIT) · chuyển động mocap © Bandai Namco Research (CC BY-NC-ND) · thời tiết Open-Meteo</p>
 </dialog>
 
 <script>
@@ -331,7 +374,7 @@ function spoken(text) {
   return (say.length ? say.map(l => l.replace(/^🗣\s*/, '')) : lines.filter(l => !/^(✏️|💡)/.test(l))).join(' ');
 }
 
-function showLevel() { $('#level').textContent = profile.band ? `Band ${profile.band}` : 'chưa rõ'; }
+function showLevel() { $('#level').textContent = `Band ${profile.band || '?'}`; }
 
 function setMode(m) {
   mode = m; store('ie_mode', mode);
@@ -355,8 +398,8 @@ function render(m) {
   else {
     for (const line of m.text.split('\n')) {
       const t = line.trim();
-      const span = el('span', t.startsWith('🗣') ? 'say' : /^(✏️|💡)/.test(t) ? 'fix' : '', line);
-      if (span.className !== 'fix') span.textContent += '\n';
+      const span = el('span', t.startsWith('🗣') ? 'say' : t.startsWith('💡') ? 'fix tip' : t.startsWith('✏️') ? 'fix' : '', line);
+      if (!span.classList.contains('fix')) span.textContent += '\n';
       div.append(span);
     }
     const say = spoken(m.text);
@@ -572,7 +615,8 @@ Remember: speak ONLY English, even when they speak Vietnamese.`;
 }
 
 function callUI(state, msg) {
-  const st = { idle: 'Bấm Gọi để nói chuyện bằng giọng nói', connecting: 'Đang kết nối…', listening: '🎤 Sam đang nghe bạn…', speaking: '🔊 Sam đang nói… (cứ nói để chen ngang)' }[state];
+  $('#call').dataset.st = state;
+  const st = { idle: '', connecting: 'Đang kết nối…', listening: '🎤 Sam đang nghe bạn…', speaking: '🔊 Sam đang nói… (cứ nói để chen ngang)' }[state];
   $('#callStatus').textContent = msg || st || '';
   $('#callAva').className = state === 'listening' || state === 'speaking' ? state : '';
   $('#callIdle').hidden = state !== 'idle';
@@ -695,7 +739,8 @@ $('#callGo').onclick = () => callStart();
 setTimeout(() => window.Avatar?.init(), 300); // tải sẵn nhân vật 3D (~9 MB, lần đầu) khi mở app
 $('#callStop').onclick = () => callEnd(live);
 $('#callExam').onclick = () => live?.ready && live.ws.send(JSON.stringify({ clientContent: { turns: [{ role: 'user', parts: [{ text: '[SPEAKING] Please start a full mock IELTS Speaking test now, Part 1 first.' }] }], turnComplete: true } }));
-$('#callMute').onclick = () => { if (!live) return; live.muted = !live.muted; $('#callMute').classList.toggle('on', live.muted); $('#callMute').textContent = live.muted ? '🎤 Bật mic' : '🔇 Tắt mic'; };
+$('#callMute').onclick = () => { if (!live) return; live.muted = !live.muted; $('#callMute').classList.toggle('on', live.muted); $('#callMute span').textContent = live.muted ? 'Bật mic' : 'Tắt mic'; };
+$('#callRoad').onclick = () => { $('#call').hidden = true; show('vRoad'); };
 $('#callText').onclick = () => { $('#call').hidden = true; };
 $('#callBtn').onclick = () => { $('#call').hidden = false; callUI(live ? 'listening' : 'idle'); };
 $('#callAva').onclick = () => live && stopPlayback(live); // chạm ảnh để Sam im
@@ -778,23 +823,31 @@ window.Avatar = {
       // Ống kính mặc định 10° (tele) chỉ thấy một mẩu nền: mở 35° rồi kéo máy lại gần, giữ nguyên cỡ nhân vật.
       // Chiều cao khung = 2·z·tan(fov/2): fov 10 ở z 6.9 ≈ fov 35 ở z 1.92 (z = cameraDistance + 8 với view 'mid').
       head.camera.fov = 35; head.camera.updateProjectionMatrix(); head.opt.cameraDistance = -6.08; head.setView('mid');
-      try { // tiên cảnh anime 3D + ngày/đêm: 'auto' theo giờ máy, bấm nút để đổi tay
-        const env = buildXianxia(head.scene), btn = document.getElementById('dnBtn'), order = ['auto', 'ngay', 'chieu', 'dem'];
-        let m = 'auto'; try { m = localStorage.getItem('dn') || 'auto'; } catch {}
-        const apply = () => { const ph = m === 'auto' ? phaseByClock() : m; env.userData.setPhase(ph); btn.textContent = PHASES[ph].label + (m === 'auto' ? ' · tự động' : ''); };
-        btn.hidden = false; apply(); setInterval(() => m === 'auto' && apply(), 600000);
-        btn.onclick = () => { m = order[(order.indexOf(m) + 1) % order.length]; try { localStorage.setItem('dn', m); } catch {} apply(); };
-        // Khu vực → thời tiết thật theo dự báo (Open-Meteo) + mùa theo khí hậu vùng; nút thời tiết bấm để đổi tay
-        const wb = document.getElementById('wxBtn'), rs = document.getElementById('kvSel'), wo = ['auto', ...Object.keys(WEATHERS)];
-        let w = 'auto', real = 'quang', kv = 'hcm'; try { w = localStorage.getItem('wx') || 'auto'; kv = localStorage.getItem('kv') || 'hcm'; } catch {}
-        if (!REGIONS[kv]) kv = 'hcm';
+      try { // tiên cảnh: buổi (theo giờ máy) · thời tiết (thật theo khu vực) · mùa (theo khí hậu vùng) — chỉnh trong bảng ở chip góc trên phải
+        const env = buildXianxia(head.scene), $$ = id => document.getElementById(id);
+        const get = (k, d) => { try { return localStorage.getItem(k) || d; } catch { return d; } }, put = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+        let m = get('dn', 'auto'), w = get('wx', 'auto'), kv = get('kv', 'hcm'), real = 'quang'; if (!REGIONS[kv]) kv = 'hcm';
+        const rs = $$('kvSel'), panel = $$('scenePanel'), sb = $$('sceneBtn'), icon = s => s.split(' ')[0];
         rs.innerHTML = Object.entries(REGIONS).map(([k, [n]]) => `<option value="${k}">📍 ${n}</option>`).join(''); rs.value = kv;
-        const wapply = () => { const k = w === 'auto' ? real : w, se = seasonOf(kv); env.userData.setSeason(se); env.userData.setWeather(k);
-          wb.textContent = WEATHERS[k] + (w === 'auto' ? ' · thật' : '') + ' · ' + SEASONS[se].label; };
-        const fetchReal = () => realWeather(kv).then(k => { real = k; wapply(); }).catch(() => {});
-        wb.hidden = rs.hidden = false; wapply(); fetchReal(); setInterval(fetchReal, 1800000);
-        wb.onclick = () => { w = wo[(wo.indexOf(w) + 1) % wo.length]; try { localStorage.setItem('wx', w); } catch {} wapply(); };
-        rs.onchange = () => { kv = rs.value; try { localStorage.setItem('kv', kv); } catch {} wapply(); fetchReal(); };
+        const seg = (box, opts, cur, pick) => box.replaceChildren(...opts.map(([k, t]) => {
+          const b = document.createElement('button'); b.textContent = t; b.className = k === cur ? 'on' : ''; b.onclick = () => pick(k); return b; }));
+        const apply = () => {
+          const ph = m === 'auto' ? phaseByClock() : m, k = w === 'auto' ? real : w, se = seasonOf(kv);
+          env.userData.setPhase(ph); env.userData.setSeason(se); env.userData.setWeather(k);
+          sb.textContent = `${icon(PHASES[ph].label)} ${icon(WEATHERS[k])} ${icon(SEASONS[se].label)} ${REGIONS[kv][0]}`;
+          seg($$('segDn'), [['auto', 'Theo giờ'], ...Object.entries(PHASES).map(([k, P]) => [k, P.label])], m, v => { m = v; put('dn', v); apply(); });
+          seg($$('segWx'), [['auto', 'Thật'], ...Object.entries(WEATHERS)], w, v => { w = v; put('wx', v); apply(); });
+          const sn = SEASONS[se].label.replace(/^\S+ /, '');
+          $$('seasonNote').textContent = `${sn.startsWith('Mùa') ? sn : 'Mùa ' + sn.toLowerCase()} ở ${REGIONS[kv][0]}${w === 'auto' ? ` · trời thật: ${WEATHERS[real].replace(/^\S+ /, '').toLowerCase()}` : ''}`;
+        };
+        const fetchReal = () => realWeather(kv).then(k => { real = k; apply(); }).catch(() => {});
+        rs.onchange = () => { kv = rs.value; put('kv', kv); apply(); fetchReal(); };
+        const close = () => { panel.hidden = true; sb.setAttribute('aria-expanded', 'false'); };
+        sb.onclick = () => { panel.hidden = !panel.hidden; sb.setAttribute('aria-expanded', String(!panel.hidden)); };
+        document.addEventListener('pointerdown', e => { if (!panel.hidden && !$$('sceneWrap').contains(e.target)) close(); });
+        $$('sceneWrap').hidden = false; apply(); fetchReal();
+        setInterval(() => m === 'auto' && apply(), 600000); setInterval(fetchReal, 1800000);
+        if (!get('dh', '')) { const d = $$('dragHint'); d.hidden = false; put('dh', '1'); setTimeout(() => d.hidden = true, 6500); }
       } catch (e) { console.warn('xianxia', e); }
       Object.assign(head.controls, { enableRotate: true, minPolarAngle: .35, maxPolarAngle: 1.75, rotateSpeed: .6 }); // kéo để xoay 360°, không chui dưới đất
       node.classList.add('ready'); document.getElementById('call').classList.add('has3d');
