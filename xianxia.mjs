@@ -166,11 +166,19 @@ export function buildXianxia(scene) {
   // Bục ngọc sen (Magnific: concept → 3D, bg/buc.glb ~19k mặt, texture 1024). Chưa tải xong thì tạm dùng đĩa ngọc trơn.
   const jade = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.75, .25, 48), basic({ color: 0xdfeee8 })); jade.position.y = -.125; env.add(jade);
   new GLTFLoader().load('bg/buc.glb', g => {
-    const m = g.scene; m.scale.setScalar(1.5); m.rotation.y = Math.PI; // bậc thang ra phía máy quay, lan can + đèn lồng sau lưng Sam
+    const m = g.scene; m.scale.setScalar(1.5); m.rotation.y = -1.76; // mô hình quay mặt +X: xoay để bậc thang ra phía máy quay, lan can + 2 đèn lồng sau lưng Sam
     m.position.y = .063 * 1.5; // mặt bục (y -0.063 trong mô hình) = chỗ Sam đứng
     m.traverse(o => { if (o.isMesh) { const map = o.material.map; map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 4;
-      o.material = new THREE.MeshBasicMaterial({ map, toneMapped: false, side: THREE.DoubleSide }); PLAT.push(o.material); } });
-    env.add(m); jade.visible = false; env.userData.retint?.();
+      o.material = new THREE.MeshBasicMaterial({ map, toneMapped: false, side: THREE.DoubleSide }); PLAT.push(o.material);
+      o.material.onBeforeCompile = sh => {
+        Object.assign(sh.uniforms, LAMPU);
+        sh.vertexShader = 'varying vec3 vWP;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\nvWP = (modelMatrix * vec4(transformed, 1.)).xyz;');
+        sh.fragmentShader = 'varying vec3 vWP; uniform float uLamp; uniform vec3 uL1, uL2;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+          { float d = min(distance(vWP, uL1), distance(vWP, uL2)); float e = smoothstep(.26, .13, d) * uLamp;
+            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(1., .66, .3) * (.75 + .35 * diffuseColor.r), e); }`);
+      };
+    } });
+    env.add(m); jade.visible = false; env.userData.retint?.(); env.userData.addLamps?.(m);
   }, undefined, e => console.warn('bục', e));
   const tree = sakura(); tree.position.set(-2.2, -.1, -3.0); tree.scale.setScalar(1.5); addFar(tree);
   const tree2 = sakura(); tree2.position.set(2.6, -.1, -3.6); tree2.scale.setScalar(1.3); tree2.rotation.y = 2; addFar(tree2); // có tranh thì ẩn (tranh đã có hoa đào)
@@ -216,6 +224,7 @@ export function buildXianxia(scene) {
   painting(scene, env, far);
   env.userData.setPhase(phaseByClock());
   setupWeather(scene, env);
+  setupFx(scene, env);
 
   let last = performance.now();
   (function tick(now) {
@@ -244,6 +253,8 @@ export function buildXianxia(scene) {
 // nửa sau lưng Sam là bản lật (nhìn từ trong vòm ảnh bị ngược), nửa kia là bản gốc → hai mép nối liền.
 // Vòm nhận cả ảnh lẫn video (VideoTexture) — xem painting() bên dưới.
 const TINT = new THREE.Color(1, 1, 1); // ám màu thời tiết × mùa đang áp lên vòm
+// Thân đèn lồng trên bục tự sáng (shader của bục): uLamp 0..1 theo buổi, uL1/uL2 = tâm 2 đèn (thế giới)
+const LAMPU = { uLamp: { value: 0 }, uL1: { value: new THREE.Vector3(0, -9, 0) }, uL2: { value: new THREE.Vector3(0, -9, 0) } };
 const PLAT = [], WHITE = new THREE.Color(1, 1, 1); // vật liệu bục: ám theo vòm nhưng nhẹ hơn (đèn lồng vẫn sáng)
 function dome(env, tex, w, h) {
   const R = 600, H = Math.PI * R * h / w; // giữ đúng tỉ lệ khung trên nửa vòng
@@ -322,7 +333,7 @@ function painting(scene, env, far) {
   }
   env.userData.setVideo = name => { vname = name; if (name) loadVid(name); pick(); };
   env.userData.setPhase = name => {
-    phase = env.userData.phase = name; loadImg(name); pick(); env.userData.retint?.();
+    phase = env.userData.phase = name; loadImg(name); pick(); env.userData.retint?.(); env.userData.refx?.();
     const P = PHASES[name], to = new THREE.Color(P.color), ls = [];
     scene.traverse(o => { if (o.isAmbientLight) ls.push([o, o.intensity, P.amb]); if (o.isDirectionalLight) ls.push([o, o.intensity, P.dir, o.color.clone()]); });
     tween('light', 2.5, x => ls.forEach(([o, a, b, c]) => { o.intensity = a + (b - a) * x; if (c) o.color.lerpColors(c, to, x); }));
@@ -416,7 +427,7 @@ export function setupWeather(scene, env) {
   let mistO = 0;
   const fade = (key, from, to, set, sec = 1.8) => tween(key, sec, x => set(from + (to - from) * x));
   env.userData.setWeather = k => {
-    kind = k;
+    kind = env.userData.weather = k; env.userData.refx?.();
     fade('rain', rain.visible ? rain.material.opacity : 0, k === 'bao' ? .85 : k === 'mua' ? .7 : 0, a => { rain.material.opacity = a; rain.visible = a > .01; });
     fade('snow', snow.visible ? snow.material.opacity : 0, k === 'tuyet' ? 1 : 0, a => { snow.material.opacity = a; snow.visible = a > .01; });
     fade('mist', mistO, k === 'suong' ? 1 : 0, a => { mistO = a; mist.visible = a > .01; mist.children.forEach(s => s.material.opacity = s.userData.o * a); }, 3);
@@ -446,4 +457,75 @@ export function setupWeather(scene, env) {
     if (kind === 'bao' && now > nextBolt) { bolt(); nextBolt = now + rnd(4000, 10000); }
     requestAnimationFrame(tick);
   })(last);
+}
+
+// ===== Hiệu ứng theo buổi: đèn lồng trên bục (ngày tắt · chiều hửng · đêm sáng lung linh, hắt ánh ấm lên Sam),
+// mạn-đà-la trên sàn phát sáng như trận pháp về đêm, đom đóm ban đêm, bụi nắng ban ngày. Mưa/tuyết thì tắt đom đóm + bụi nắng.
+const FX = {
+  ngay: { lamp: 0, mandala: 0, fire: 0, motes: 1 },
+  chieu: { lamp: .45, mandala: .15, fire: 0, motes: .7 },
+  dem: { lamp: 1, mandala: .42, fire: 1, motes: 0 },
+};
+function setupFx(scene, env) {
+  const L = { lamp: 0, mandala: 0, fire: 0, motes: 0 }, add = THREE.AdditiveBlending;
+  // Đèn lồng: quầng sáng đè lên thân đèn + 1 đèn điểm ấm sau lưng Sam (rọi tóc/vai)
+  const lampTex = glow('rgba(255,200,120,1)', 64), lamps = [];
+  const light = new THREE.PointLight(0xffa860, 0, 4.5, 1.6); light.position.set(0, 1.0, -1.0); env.add(light);
+  env.userData.addLamps = m => {
+    for (const p of [[-0.67, .33, -0.63], [-0.35, .33, .77]]) { // tâm thân đèn trong toạ độ mô hình (đo từ bg/buc.glb)
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: lampTex, color: 0xffa850, transparent: true, opacity: 0, depthWrite: false, blending: add, toneMapped: false }));
+      s.position.set(...p); s.scale.setScalar(.75); m.add(s); lamps.push(s);
+    }
+    m.updateMatrixWorld(true); lamps[0].getWorldPosition(LAMPU.uL1.value); lamps[1].getWorldPosition(LAMPU.uL2.value); LAMPU.uL1.value.y -= .08; LAMPU.uL2.value.y -= .08; // tâm thân giấy thấp hơn tâm cả cụm (có nắp)
+  };
+  // Mạn-đà-la phát sáng: vẽ vòng tròn + cánh sen bằng canvas, cộng sáng lên sàn bục
+  const mt = canvasTex(512, 512, (g, w) => {
+    const c = w / 2; g.translate(c, c); g.strokeStyle = 'rgba(255,225,150,1)'; g.shadowColor = 'rgba(255,210,120,1)'; g.shadowBlur = 12;
+    for (const [r, lw] of [[230, 5], [200, 3], [120, 4], [60, 3]]) { g.lineWidth = lw; g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.stroke(); }
+    g.lineWidth = 3;
+    for (let i = 0; i < 16; i++) { g.save(); g.rotate(i / 16 * Math.PI * 2); g.beginPath(); g.moveTo(0, -120); g.quadraticCurveTo(38, -165, 0, -200); g.quadraticCurveTo(-38, -165, 0, -120); g.stroke(); g.restore(); }
+    for (let i = 0; i < 8; i++) { g.save(); g.rotate(i / 8 * Math.PI * 2 + Math.PI / 8); g.beginPath(); g.moveTo(0, -60); g.quadraticCurveTo(26, -90, 0, -120); g.quadraticCurveTo(-26, -90, 0, -60); g.stroke(); g.restore(); }
+  });
+  const mandala = new THREE.Mesh(new THREE.CircleGeometry(1.15, 64), new THREE.MeshBasicMaterial({ map: mt, transparent: true, opacity: 0, depthWrite: false, blending: add, toneMapped: false, color: 0xffd9a0 }));
+  mandala.rotation.x = -Math.PI / 2; mandala.position.y = .006; mandala.renderOrder = 1; mandala.visible = false; env.add(mandala);
+  // Hạt bay: đom đóm (đêm, nhấp nháy, lượn) và bụi nắng (ngày, lấp lánh, trôi lên chậm) — dùng chung một kiểu
+  function motes(n, rgb, size, rMin, rMax, yMin, yMax) {
+    const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), ph = new Float32Array(n), base = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, r = rMin + Math.random() * (rMax - rMin);
+      base.set([Math.cos(a) * r, yMin + Math.random() * (yMax - yMin), Math.sin(a) * r], i * 3); ph[i] = Math.random() * 100;
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    const pts = new THREE.Points(g, new THREE.PointsMaterial({ map: glow('rgba(255,255,255,1)', 32), size, vertexColors: true, transparent: true, depthWrite: false, blending: add, toneMapped: false }));
+    pts.frustumCulled = false; pts.visible = false; env.add(pts);
+    return { pts, update(t, level, wander, blink) {
+      pts.visible = level > .01; if (!pts.visible) return;
+      for (let i = 0; i < n; i++) {
+        const k = ph[i], o = i * 3;
+        pos[o] = base[o] + Math.sin(t * .3 * wander + k) * .6 * wander; pos[o + 2] = base[o + 2] + Math.cos(t * .25 * wander + k * 1.3) * .6 * wander;
+        pos[o + 1] = base[o + 1] + Math.sin(t * .5 + k) * .25 + (wander < 1 ? ((t * .05 + k) % 1) * .8 : 0);
+        const b = level * (blink ? Math.max(0, Math.sin(t * 1.7 + k * 3)) ** 3 : .55 + .45 * Math.sin(t * 2.3 + k * 5));
+        col[o] = rgb[0] * b; col[o + 1] = rgb[1] * b; col[o + 2] = rgb[2] * b;
+      }
+      g.attributes.position.needsUpdate = true; g.attributes.color.needsUpdate = true;
+    } };
+  }
+  const fire = motes(70, [.85, 1, .45], .09, 1.6, 7, .1, 2.6);
+  const sun = motes(90, [1, .93, .7], .05, .8, 5, .2, 3.2);
+  env.userData.refx = () => {
+    const P = FX[env.userData.phase] || FX.ngay, w = env.userData.weather || 'quang', wet = w === 'mua' || w === 'bao' || w === 'tuyet';
+    const to = { lamp: P.lamp * (w === 'bao' ? .8 : 1), mandala: P.mandala, fire: wet ? 0 : P.fire * (w === 'suong' ? .5 : 1), motes: wet ? 0 : P.motes * (w === 'suong' ? .3 : 1) };
+    const from = { ...L };
+    tween('fx', 3, x => { for (const k in L) L[k] = from[k] + (to[k] - from[k]) * x; });
+  };
+  let t0 = performance.now();
+  (function tick(now) {
+    const t = (now - t0) / 1000;
+    lamps.forEach((s, i) => { s.material.opacity = L.lamp * .6 * (.82 + .1 * Math.sin(t * 7.3 + i * 2) + .08 * Math.sin(t * 13.1 + i)); s.visible = L.lamp > .01; });
+    light.intensity = L.lamp * 1.4 * (.92 + .08 * Math.sin(t * 7.3)); LAMPU.uLamp.value = L.lamp * (.9 + .1 * Math.sin(t * 7.3));
+    mandala.visible = L.mandala > .01; mandala.material.opacity = L.mandala * (.75 + .25 * Math.sin(t * .8)); mandala.rotation.z = t * .03;
+    fire.update(t, L.fire, 1, true); sun.update(t, L.motes, .4, false);
+    requestAnimationFrame(tick);
+  })(t0);
+  env.userData.refx();
 }
