@@ -225,6 +225,7 @@ export function buildXianxia(scene) {
   env.userData.setPhase(phaseByClock());
   setupWeather(scene, env);
   setupFx(scene, env);
+  setupUmbrella(scene, env);
 
   let last = performance.now();
   (function tick(now) {
@@ -430,7 +431,7 @@ export function setupWeather(scene, env) {
   let mistO = 0;
   const fade = (key, from, to, set, sec = 1.8) => tween(key, sec, x => set(from + (to - from) * x));
   env.userData.setWeather = k => {
-    kind = env.userData.weather = k; env.userData.refx?.();
+    kind = env.userData.weather = k; env.userData.refx?.(); env.userData.setUmbrella?.(k === 'mua' || k === 'bao' || k === 'tuyet');
     fade('rain', rain.visible ? rain.material.opacity : 0, k === 'bao' ? .85 : k === 'mua' ? .7 : 0, a => { rain.material.opacity = a; rain.visible = a > .01; });
     fade('snow', snow.visible ? snow.material.opacity : 0, k === 'tuyet' ? 1 : 0, a => { snow.material.opacity = a; snow.visible = a > .01; });
     fade('mist', mistO, k === 'suong' ? 1 : 0, a => { mistO = a; mist.visible = a > .01; mist.children.forEach(s => s.material.opacity = s.userData.o * a); }, 3);
@@ -445,14 +446,16 @@ export function setupWeather(scene, env) {
       for (let i = 0; i < NR; i++) {
         const o = i * 6, d = rv[i] * dt * (kind === 'bao' ? 1.3 : 1);
         rp[o + 1] -= d; rp[o + 4] -= d; rp[o] += d * .12; rp[o + 3] += d * .12;
-        if (rp[o + 4] < -1) { const x = rnd(-R, R), z = rnd(-R, R), y = TOP; rp.set([x, y, z, x + .04, y - .32, z], o); }
+        const u = env.userData; // khô ráo dưới dù: giọt nào lọt vào vùng tán thì rơi lại từ trên cao
+        if (rp[o + 4] < -1 || (u.umb > .3 && rp[o + 1] < u.umbTop && Math.hypot(rp[o] - u.umbC.x, rp[o + 2] - u.umbC.z) < u.umbR)) { const x = rnd(-R, R), z = rnd(-R, R), y = TOP; rp.set([x, y, z, x + .04, y - .32, z], o); }
       }
       rg.attributes.position.needsUpdate = true;
     }
     if (snow.visible) {
       for (let i = 0; i < NS; i++) {
         sd[i] += dt; sp[i * 3] += Math.sin(sd[i]) * .006; sp[i * 3 + 1] -= .45 * dt; sp[i * 3 + 2] += Math.cos(sd[i] * .8) * .005;
-        if (sp[i * 3 + 1] < -1) sp[i * 3 + 1] = TOP;
+        const u = env.userData;
+        if (sp[i * 3 + 1] < -1 || (u.umb > .3 && sp[i * 3 + 1] < u.umbTop && Math.hypot(sp[i * 3] - u.umbC.x, sp[i * 3 + 2] - u.umbC.z) < u.umbR)) { sp[i * 3] = rnd(-R, R); sp[i * 3 + 1] = TOP; sp[i * 3 + 2] = rnd(-R, R); }
       }
       sg.attributes.position.needsUpdate = true;
     }
@@ -531,4 +534,79 @@ function setupFx(scene, env) {
     requestAnimationFrame(tick);
   })(t0);
   env.userData.refx();
+}
+
+// ===== Dù giấy dầu kiểu tiên hiệp: Sam cầm (tay trái) khi mưa / giông / tuyết. Múi trắng kem xen xanh bạc hà, viền đỏ rượu
+// (màu tóc Sam), hoa văn sen vàng, cán tre có tua. Mở ra dần; nước nhỏ giọt từ mép dù; mưa/tuyết không rơi vào vùng dưới dù.
+function setupUmbrella(scene, env) {
+  const RIM_Y = .92, RC = .52, RS = .66, TH = Math.asin(RC / RS), g = new THREE.Group(); g.visible = false; env.add(g);
+  const tex = canvasTex(1024, 256, (c, w, h) => {
+    c.translate(0, h); c.scale(1, -1); // ảnh vẽ từ đỉnh xuống viền; lật để khớp cách trải UV của mặt cầu
+    const N = 16, gw = w / N;
+    for (let i = 0; i < N; i++) { c.fillStyle = i % 2 ? '#c9ecdb' : '#fff3df'; c.fillRect(i * gw, 0, gw + 1, h); }
+    c.strokeStyle = '#d9a63a'; c.lineWidth = 3; // sườn vàng giữa các múi
+    for (let i = 0; i <= N; i++) { c.beginPath(); c.moveTo(i * gw, 0); c.lineTo(i * gw, h * .86); c.stroke(); }
+    for (let i = 0; i < N; i++) { // cánh sen vàng trong mỗi múi
+      const x = i * gw + gw / 2; c.strokeStyle = '#d9a63a'; c.fillStyle = i % 2 ? 'rgba(255,255,255,.55)' : 'rgba(201,236,219,.7)'; c.lineWidth = 2.2;
+      c.beginPath(); c.moveTo(x, h * .24); c.quadraticCurveTo(x + gw * .36, h * .46, x, h * .7); c.quadraticCurveTo(x - gw * .36, h * .46, x, h * .24); c.fill(); c.stroke();
+      c.fillStyle = '#d9a63a'; c.beginPath(); c.arc(x, h * .76, 3.4, 0, 7); c.fill();
+    }
+    c.fillStyle = '#9b1c3c'; c.fillRect(0, h * .86, w, h * .14); // viền đỏ rượu
+    c.strokeStyle = '#f0c76a'; c.lineWidth = 4; c.beginPath(); c.moveTo(0, h * .86); c.lineTo(w, h * .86); c.stroke();
+    c.fillStyle = 'rgba(255,240,210,.9)'; for (let i = 0; i < N * 2; i++) { c.beginPath(); c.arc((i + .5) * gw / 2, h * .93, 3, 0, 7); c.fill(); }
+    c.fillStyle = '#e8b84a'; c.beginPath(); c.arc(w / 2, 6, 40, 0, 7); c.fill(); // đỉnh
+  });
+  tex.wrapS = THREE.RepeatWrapping; tex.flipY = false; // đỉnh dù = phía trên ảnh, viền đỏ = phía dưới ảnh
+  const cap = new THREE.SphereGeometry(RS, 64, 14, 0, Math.PI * 2, 0, TH); // uv.y đã chạy 1 (đỉnh) → 0 (viền) theo hàng, không cần chỉnh
+  cap.translate(0, RIM_Y - RS * Math.cos(TH), 0);
+  const top = new THREE.Mesh(cap, new THREE.MeshBasicMaterial({ map: tex, side: THREE.FrontSide, toneMapped: false }));
+  const under = new THREE.Mesh(cap, new THREE.MeshBasicMaterial({ color: 0xf1dcc0, side: THREE.BackSide, toneMapped: false }));
+  const canopy = new THREE.Group(); canopy.add(top, under);
+  // nan dù (nhìn thấy từ phía dưới)
+  const ribs = []; for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; for (let j = 0; j < 8; j++) { const t0 = TH * j / 8, t1 = TH * (j + 1) / 8, y0 = RS * Math.cos(t0) + RIM_Y - RS * Math.cos(TH), y1 = RS * Math.cos(t1) + RIM_Y - RS * Math.cos(TH);
+    ribs.push(Math.cos(a) * RS * Math.sin(t0) * .995, y0 - .004, Math.sin(a) * RS * Math.sin(t0) * .995, Math.cos(a) * RS * Math.sin(t1) * .995, y1 - .004, Math.sin(a) * RS * Math.sin(t1) * .995); } }
+  const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.Float32BufferAttribute(ribs, 3)); canopy.add(new THREE.LineSegments(rg, new THREE.LineBasicMaterial({ color: 0x8a6a35, toneMapped: false })));
+  const bamboo = new THREE.MeshBasicMaterial({ color: 0xa97c45, toneMapped: false }), gold = new THREE.MeshBasicMaterial({ color: 0xe8b84a, toneMapped: false });
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(.011, .014, 1.34, 10), bamboo); pole.position.y = .56; g.add(pole);
+  for (const y of [-.04, .03, .5, .88]) { const r = new THREE.Mesh(new THREE.TorusGeometry(.016, .005, 6, 14), gold); r.rotation.x = Math.PI / 2; r.position.y = y; g.add(r); }
+  const fin = new THREE.Mesh(new THREE.ConeGeometry(.02, .08, 10), gold); fin.position.y = RIM_Y + RS * (1 - Math.cos(TH)) + .04; g.add(fin);
+  const tas = new THREE.Group(); tas.position.y = .02; g.add(tas); // tua đỏ rủ dưới cán
+  const cord = new THREE.Mesh(new THREE.CylinderGeometry(.004, .004, .16, 5), new THREE.MeshBasicMaterial({ color: 0x9b1c3c, toneMapped: false })); cord.position.y = -.08; tas.add(cord);
+  const tuft = new THREE.Mesh(new THREE.ConeGeometry(.022, .1, 8), new THREE.MeshBasicMaterial({ color: 0xb8283f, toneMapped: false })); tuft.position.y = -.2; tuft.rotation.x = Math.PI; tas.add(tuft);
+  g.add(canopy);
+  PLAT.push(top.material, under.material, bamboo, gold); // ám màu theo trời như bục
+  // giọt nước nhỏ từ mép dù (chỉ lúc mưa)
+  const ND = 36, dp = new Float32Array(ND * 3), dph = new Float32Array(ND).map(() => Math.random()), dang = new Float32Array(ND).map(() => Math.random() * 6.28);
+  const dg = new THREE.BufferGeometry(); dg.setAttribute('position', new THREE.BufferAttribute(dp, 3));
+  const drips = new THREE.Points(dg, new THREE.PointsMaterial({ map: glow('rgba(255,255,255,1)', 32), size: .035, color: 0xd8ecff, transparent: true, opacity: .9, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+  drips.frustumCulled = false; drips.visible = false; env.add(drips);
+
+  const u = env.userData; u.umb = 0; u.umbTop = 2.3; u.umbR = RC; u.umbC = new THREE.Vector3(); let want = 0;
+  u.setUmbrella = on => {
+    if (on === !!want) return; want = on ? 1 : 0; const from = u.umb;
+    u.onUmb?.(!!on); // đổi khung máy (TalkingHead tự chuyển dần)
+    tween('umb', on ? 1.1 : .8, x => { u.umb = from + (want - from) * x; });
+  };
+  const hv = new THREE.Vector3(), hd = new THREE.Vector3(); let t0 = performance.now();
+  (function tick(now) {
+    const k = u.umb, t = (now - t0) / 1000;
+    g.visible = k > .01;
+    if (g.visible && u.hand) {
+      u.hand.getWorldPosition(hv); u.head?.getWorldPosition(hd); env.worldToLocal(hv); env.worldToLocal(hd);
+      const L = 1.1 + RS * (1 - Math.cos(TH)) * .3; // nghiêng cho tán nằm trên đầu Sam
+      g.position.copy(hv); g.position.y -= .05; g.position.z += .13; // cán dù nằm phía trước người để thấy tay cầm
+      g.rotation.set(.04, 0, Math.asin(Math.max(-.5, Math.min(.5, (hv.x - hd.x) / L))));
+      g.scale.setScalar(.55 + .45 * k); canopy.scale.set(.2 + .8 * k, .35 + .65 * k, .2 + .8 * k); // xoè ra dần
+      tas.rotation.z = Math.sin(t * 2.1) * .12; tas.rotation.x = Math.sin(t * 1.7) * .1;
+      canopy.updateWorldMatrix(true, false); u.umbC.set(0, 0, 0).applyMatrix4(canopy.matrixWorld); u.umbC.y = 0;
+      const top0 = new THREE.Vector3(0, RIM_Y, 0).applyMatrix4(canopy.matrixWorld); u.umbTop = top0.y + .4; u.umbC.x = top0.x; u.umbC.z = top0.z; u.umbR = RC * (.2 + .8 * k) * g.scale.x + .04;
+      const wet = (u.weather === 'mua' || u.weather === 'bao') && k > .7; drips.visible = wet;
+      if (wet) for (let i = 0; i < ND; i++) {
+        const ph = (dph[i] + t * .6) % 1, a = dang[i], r = u.umbR - .04;
+        dp[i * 3] = top0.x + Math.cos(a) * r; dp[i * 3 + 2] = top0.z + Math.sin(a) * r; dp[i * 3 + 1] = top0.y - ph * ph * 1.7;
+      }
+      if (wet) dg.attributes.position.needsUpdate = true;
+    }
+    requestAnimationFrame(tick);
+  })(t0);
 }

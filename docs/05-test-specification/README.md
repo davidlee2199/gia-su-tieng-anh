@@ -10,6 +10,8 @@
 | A-fx | 90 tổ hợp buổi×thời tiết×mùa không lỗi; đèn đêm sáng, ngày tắt |
 | A-season | Mùa theo vùng/tháng; mỗi mùa có video; toạ độ 10 khu vực nằm trong Việt Nam |
 | A-weather | Mã WMO → kiểu đúng; Open-Meteo trả số |
+| A-frame | Chân Sam nằm trên hàng nút (khổ 393×873) |
+| A-umbrella | Mưa/giông/tuyết: dù mở hết cỡ, tán + chân nằm trong màn; quang/sương: dù đóng |
 | A-lang | Luật "chỉ nói tiếng Anh" có trong lời dặn; `FOREIGN` bắt đúng; |
 | A-chat | Dòng 💡 ✏️ 🗣 có kiểu riêng; tab IELTS và Cài đặt mở được |
 | A-console | Không lỗi console/exception cả phiên |

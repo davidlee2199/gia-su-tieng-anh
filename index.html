@@ -786,11 +786,12 @@ const REACT = [
   [/\?\s*$/, null, '🤔'],
 ];
 let fired = new Set(), lastGesture = 0, lastNod = 0;
-function cute(name, dur = 2.5) { try { head?.playGesture(name, dur, Math.random() < .5); } catch {} }
+const umbUp = () => (window.samEnv?.userData.umb || 0) > .3; // đang cầm dù: tay trái giữ dù nên không làm cử chỉ tay
+function cute(name, dur = 2.5) { if (umbUp() && /^[a-z]+$/.test(name)) return; try { head?.playGesture(name, dur, Math.random() < .5); } catch {} }
 // Động tác mocap thật (Bandai Namco); lỗi mạng thì dùng cử chỉ tay có sẵn.
 let mocapBusy = false;
 async function mocap(name, fallback) {
-  if (mocapBusy) return; mocapBusy = true;
+  if (mocapBusy || umbUp()) return; mocapBusy = true;
   const ok = await playMocap(head, name, 1);
   if (!ok && fallback) cute(fallback, 2.8);
   setTimeout(() => mocapBusy = false, /dance/.test(name) ? 15000 : 4000);
@@ -823,8 +824,13 @@ window.Avatar = {
       // Ống kính mặc định 10° (tele) chỉ thấy một mẩu nền: mở 35° rồi kéo máy lại gần, giữ nguyên cỡ nhân vật.
       // Chiều cao khung = 2·z·tan(fov/2): fov 10 ở z 6.9 ≈ fov 35 ở z 1.92 (z = cameraDistance + 8 với view 'mid').
       head.camera.fov = 35; head.camera.updateProjectionMatrix(); head.opt.cameraDistance = -6.08; head.setView('mid');
+      // Khung TOÀN THÂN (thấy cả chân + bục) bằng chính setView của TalkingHead: 'full' → z = cameraDistance + 12, mắt nhìn y = (1-cameraY)·tan(fov/2)·z.
+      // Trời quang: máy cách 4,2 m nhìn tâm cao 0,7 m; có dù: lùi ra 4,95 m, nhìn cao 0,87 m để thấy cả tán dù. Máy hơi cao (xoay -0,1 rad) nhìn xuống bục.
+      const frameCam = umb => head.setView('full', umb ? { cameraDistance: -7.05, cameraY: .443, cameraRotateX: -.1 } : { cameraDistance: -7.8, cameraY: .471, cameraRotateX: -.1 });
+      frameCam(false);
       try { // tiên cảnh: buổi (theo giờ máy) · thời tiết (thật theo khu vực) · mùa (theo khí hậu vùng) — chỉnh trong bảng ở chip góc trên phải
         const env = buildXianxia(head.scene), $$ = id => document.getElementById(id);
+        window.samEnv = env; env.userData.hand = head.armature.getObjectByName('LeftHand'); env.userData.head = head.armature.getObjectByName('Head'); env.userData.onUmb = frameCam;
         const get = (k, d) => { try { return localStorage.getItem(k) || d; } catch { return d; } }, put = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
         let m = get('dn', 'auto'), w = get('wx', 'auto'), kv = get('kv', 'hcm'), real = 'quang'; if (!REGIONS[kv]) kv = 'hcm';
         const rs = $$('kvSel'), panel = $$('scenePanel'), sb = $$('sceneBtn'), icon = s => s.split(' ')[0];

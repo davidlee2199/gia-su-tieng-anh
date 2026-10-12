@@ -37,6 +37,9 @@ TalkingHead 1.7 + HeadAudio (visemes) trên three@0.180 (importmap). Máy quay: 
 | Đêm | 1 | .42 | 1 | 0 |
 Mưa/giông/tuyết: đom đóm + bụi nắng = 0; sương mù: nhân 0.5 / 0.3. Mọi thay đổi chuyển dần qua `tween()` (2–3 s).
 
+## Khung máy toàn thân + dù
+Khung đặt bằng `head.setView('full', {cameraDistance, cameraY, cameraRotateX})` (TalkingHead tự chuyển dần; chỉnh `camera.position` bằng tay sẽ bị nó đè lại): trời quang máy cách 4,2 m nhìn tâm cao 0,7 m; có dù lùi ra 4,95 m, tâm 0,87 m. Mưa/giông/tuyết → `setUmbrella(true)`: dù (`setupUmbrella` trong `xianxia.mjs`) bám theo xương `LeftHand`, nghiêng cho tán nằm trên đầu (`Head`), cán nằm phía trước người; mở dần ~1 s; giọt nước nhỏ từ mép khi mưa; giọt mưa/hạt tuyết nào lọt vào vùng tán thì rơi lại từ trên (`umbC/umbR/umbTop`). Đang cầm dù thì không làm cử chỉ tay và mocap (`umbUp()` trong `index.html`).
+
 ## Nguyên tắc chung
 - Thêm gì vào cảnh thì phải có hành vi theo buổi/thời tiết/mùa (không để vật tĩnh).
 - Mọi giá trị thời gian đổi dần bằng `tween`, không bật tắt cái rụp.

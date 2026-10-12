@@ -124,6 +124,24 @@ const combo = await ev(`(async()=>{const x=await import('./xianxia.mjs'),env=win
   return {n,bad,night,day,tn,td}})()`, 90000);
 check(combo?.n === 4 * 0 + 3 * 5 * 6 && !combo?.bad?.length, `mọi tổ hợp buổi×thời tiết×mùa chạy không lỗi (${combo?.n})`, combo?.bad?.slice(0, 2).join('; '));
 check(combo?.night > 1.1 && combo?.day < 0.05, 'đèn lồng: đêm sáng, ngày tắt', `đêm ${combo?.night} (${combo?.tn}s) · ngày ${combo?.day} (${combo?.td}s)`);
+// toàn thân + dù: chân Sam nằm trên hàng nút; mưa/tuyết thì dù mở, nằm gọn trong màn; hết mưa thì dù đóng
+const FRAME = `(async()=>{const h=window.Avatar.head,u=window.samEnv.userData,{Vector3}=await import('three');
+  const until=async(f,ms=25000)=>{const t=performance.now();while(performance.now()-t<ms&&!f())await new Promise(r=>setTimeout(r,250));return f()};
+  const px=(v)=>{const p=v.clone().project(h.camera);return {x:(p.x+1)/2*innerWidth,y:(1-p.y)/2*innerHeight}};
+  const foot=()=>{let y=0;for(const n of ['LeftToeBase','RightToeBase','LeftFoot','RightFoot']){const b=h.armature.getObjectByName(n),v=new Vector3();b.getWorldPosition(v);y=Math.max(y,px(v).y)}return y};
+  const btn=document.getElementById('callIdle').getBoundingClientRect(), r={};
+  u.setWeather('quang');u.setPhase('ngay');await until(()=>u.umb<.02&&h.camera.position.z<4.4);await new Promise(r=>setTimeout(r,1500));
+  r.camClear=+h.camera.position.z.toFixed(1);r.footY=Math.round(foot());r.btnTop=Math.round(btn.top);r.umbClear=+u.umb.toFixed(2);
+  u.setWeather('mua');r.opened=await until(()=>u.umb>.95&&h.camera.position.z>4.6);await new Promise(r=>setTimeout(r,1500));
+  const apex=new Vector3(u.umbC.x,u.umbTop,u.umbC.z);r.apexY=Math.round(px(apex).y);r.footRainY=Math.round(foot());r.rimL=Math.round(px(new Vector3(u.umbC.x-u.umbR,u.umbTop-.4,u.umbC.z)).x);r.rimR=Math.round(px(new Vector3(u.umbC.x+u.umbR,u.umbTop-.4,u.umbC.z)).x);r.umbRain=+u.umb.toFixed(2);
+  u.setWeather('tuyet');await new Promise(r=>setTimeout(r,800));r.umbSnow=+u.umb.toFixed(2);
+  u.setWeather('suong');r.closed=await until(()=>u.umb<.02);r.umbFog=+u.umb.toFixed(2);u.setWeather('quang');
+  r.w=innerWidth;return r})()`;
+const fr = await ev(FRAME, 120000);
+check(fr && fr.footY < fr.btnTop - 4 && fr.footY > 0, 'toàn thân: thấy chân Sam (trời quang), nằm trên hàng nút', `chân y=${fr?.footY} · nút y=${fr?.btnTop}`);
+check(fr?.opened && fr.umbRain > .95 && fr.umbSnow > .95, 'mưa/giông/tuyết: Sam cầm dù (mở hết cỡ)', JSON.stringify(fr));
+check(fr?.apexY > 0 && fr.rimL > -20 && fr.rimR < fr.w + 20 && fr.footRainY < fr.btnTop - 4, 'có dù: cả tán dù + chân vẫn nằm trong màn', `đỉnh dù y=${fr?.apexY} · mép ${fr?.rimL}..${fr?.rimR}/${fr?.w} · chân ${fr?.footRainY}`);
+check(fr?.umbClear < .05 && fr?.closed, 'trời quang/sương mù: dù đóng', `quang ${fr?.umbClear} · sương ${fr?.umbFog}`);
 const seasons = await ev(`(async()=>{const x=await import('./xianxia.mjs'),r=[];const so=x.seasonOf;
   const exp=[['hn',3,'xuan'],['hn',6,'ha'],['hn',10,'thu'],['hn',12,'dong'],['sapa',1,'dong'],['hcm',1,'kho'],['hcm',6,'mua'],['hue',10,'mua'],['dng',5,'kho']];
   for(const [k,m,e] of exp)if(so(k,m)!==e)r.push(k+' tháng '+m+': '+so(k,m)+' ≠ '+e);

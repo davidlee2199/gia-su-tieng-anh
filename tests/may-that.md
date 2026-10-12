@@ -9,4 +9,5 @@ Tick từng mục; ghi ngày + bản `gia-su-vNN`.
 - [ ] **M-05 Xoay 360°:** kéo đủ mọi hướng, nghiêng hết cỡ → không lộ mép, không giật.
 - [ ] **M-06 Cài đặt:** thêm vào màn hình chính; tắt mạng → vẫn mở được vỏ app.
 - [ ] **M-07 fps:** cắm máy, `adb forward tcp:9555 localabstract:chrome_devtools_remote`, đo `requestAnimationFrame` 3 s ở: (a) đứng yên, (b) đang chuyển buổi/thời tiết, (c) đêm + mưa. Mục tiêu 60; < 55 → hạ video.
+- [ ] **M-09 Dù:** chọn Mưa rồi Tuyết → Sam cầm dù, tán xoè ra mượt; dưới dù khô; chân vẫn thấy; trời quang → dù đóng.
 - [ ] **M-08 Cảnh:** đổi buổi/thời tiết/khu vực → chuyển mờ dần; đêm đèn lồng sáng, ngày tắt.
