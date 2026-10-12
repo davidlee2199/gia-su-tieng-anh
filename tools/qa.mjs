@@ -4,7 +4,7 @@
 // buổi×thời tiết×mùa · đèn sáng đêm tắt ngày · luật ngôn ngữ). Không cần điện thoại; fps trên máy thật vẫn phải đo riêng.
 import fs from 'fs'; import path from 'path'; import http from 'http'; import { spawn, execSync } from 'child_process';
 const ROOT = path.resolve(import.meta.dirname, '..'), CHROME = process.env.CHROME || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-const PROFILE = process.env.QA_PROFILE || path.resolve(ROOT, '..', '_tmp-sam', 'chrome-qa'), PORT = 8771, DBG = 9571;
+const PROFILE = process.env.QA_PROFILE || path.resolve(ROOT, '..', '_tmp-sam', 'chrome-qa-' + Date.now()), PORT = 8771, DBG = 9571;
 const res = []; const ok = (n, d = '') => res.push(['✅', n, d]), bad = (n, d = '') => res.push(['❌', n, d]), warn = (n, d = '') => res.push(['⚠️', n, d]);
 const check = (c, n, d = '') => c ? ok(n) : bad(n, d);
 const sh = c => { try { return execSync(c, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); } catch { return ''; } };
@@ -12,7 +12,7 @@ const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8'), size = f => fs.st
 
 // ───────── QA: mã & kho ─────────
 const html = read('index.html'), mjs = fs.readdirSync(ROOT).filter(f => f.endsWith('.mjs'));
-const tmp = path.join(PROFILE, '..', 'qa-tmp'); fs.mkdirSync(tmp, { recursive: true });
+const tmp = path.join(path.dirname(PROFILE), 'qa-tmp'); fs.mkdirSync(tmp, { recursive: true });
 let n = 0; for (const f of mjs) { try { execSync(`node --check "${path.join(ROOT, f)}"`, { stdio: 'pipe' }); } catch (e) { n++; bad('cú pháp ' + f, String(e.stderr).split('\n').slice(0, 3).join(' ')); } }
 [...html.matchAll(/<script(?![^>]*src=)([^>]*)>([\s\S]*?)<\/script>/g)].forEach((m, i) => {
   if (/importmap/.test(m[1])) { try { JSON.parse(m[2]); } catch { n++; bad('importmap JSON hỏng'); } return; }
@@ -46,13 +46,13 @@ const srv = http.createServer((q, r) => {
   if (m) { const a = +m[1], b = m[2] ? +m[2] : s.size - 1; r.writeHead(206, { ...h, 'content-range': `bytes ${a}-${b}/${s.size}`, 'content-length': b - a + 1 }); fs.createReadStream(p, { start: a, end: b }).pipe(r); }
   else { r.writeHead(200, { ...h, 'content-length': s.size }); fs.createReadStream(p).pipe(r); }
 }).listen(PORT);
-fs.rmSync(PROFILE, { recursive: true, force: true });
+for (const d of fs.readdirSync(path.dirname(PROFILE)).filter(d => /^chrome-qa-\d+$/.test(d))) try { fs.rmSync(path.join(path.dirname(PROFILE), d), { recursive: true, force: true }); } catch {} // dọn hồ sơ các lần chạy trước (hồ sơ mỗi lần một thư mục riêng để khỏi vướng khoá)
 const chrome = spawn(CHROME, ['--headless=new', `--user-data-dir=${PROFILE}`, `--remote-debugging-port=${DBG}`, '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required', 'about:blank'], { stdio: 'ignore' });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let page; for (let i = 0; i < 40 && !page; i++) { await sleep(500); try { page = (await (await fetch(`http://localhost:${DBG}/json/list`)).json()).find(t => t.type === 'page'); } catch {} }
 const finish = async () => {
   try { const v = await (await fetch(`http://localhost:${DBG}/json/version`)).json(); const w = new WebSocket(v.webSocketDebuggerUrl); w.onopen = () => w.send('{"id":1,"method":"Browser.close"}'); await sleep(800); } catch {}
-  srv.close(); chrome.kill();
+  srv.close(); try { execSync(`taskkill /F /T /PID ${chrome.pid}`, { stdio: 'ignore' }); } catch {} chrome.kill(); // Chrome headless hay sót tiến trình con
   const w = Math.max(...res.map(r => r[1].length)); for (const [i, nme, d] of res) console.log(`${i} ${nme}${d ? '  — ' + d : ''}`);
   const f = res.filter(r => r[0] === '❌').length; console.log(`\n${f ? '❌ ' + f + ' mục hỏng' : '✅ QA/QC đạt'} · ${res.filter(r => r[0] === '⚠️').length} cảnh báo · ${res.length} mục`); process.exit(f ? 1 : 0);
 };
