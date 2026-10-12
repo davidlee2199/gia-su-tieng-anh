@@ -33,6 +33,12 @@ const files = sh('git ls-files').split('\n').filter(f => f && !/\.(png|jpg|mp4|g
 const leak = files.filter(f => /AIza[0-9A-Za-z_\-]{35}|sk-[A-Za-z0-9]{32,}|-----BEGIN [A-Z ]*PRIVATE KEY/.test(read(f)));
 check(!leak.length, 'repo công khai: không lộ khoá API/khoá riêng', leak.join(', '));
 const mails = files.filter(f => /[\w.]+@(pli|m2w)\.(com\.)?vn/.test(read(f))); check(!mails.length, 'repo công khai: không có email nội bộ', mails.join(', '));
+// đặc tả (docs/) không được lệch: đủ 8 phần + mọi tệp `tools/...`/`bg/...` mà đặc tả nhắc phải còn tồn tại
+const specDirs = ['01-engineering-intent', '02-product-requirements', '03-technical-spec', '04-api-and-data-design', '05-test-specification', '06-security-and-reliability', '07-deployment-and-monitoring', '08-maintenance-and-spec-drift'];
+const noSpec = specDirs.filter(d => !fs.existsSync(path.join(ROOT, 'docs', d, 'README.md')));
+const docTxt = [...specDirs.map(d => 'docs/' + d + '/README.md'), 'tasks/agent-task-list.md', 'tests/may-that.md'].filter(f => fs.existsSync(path.join(ROOT, f))).map(read).join('\n');
+const ghost = [...new Set([...docTxt.matchAll(/`((?:tools|bg)\/[\w\-.]+\.\w+)`/g)].map(m => m[1]))].filter(f => !fs.existsSync(path.join(ROOT, f)));
+check(!noSpec.length && !ghost.length, 'đặc tả docs/ đủ 8 phần, không nhắc tệp không tồn tại', [...noSpec, ...ghost].join(', '));
 const dirty = sh('git status --porcelain').split('\n').filter(Boolean).map(l => l.slice(3)), core = dirty.filter(f => /^(index\.html|xianxia\.mjs|mocap\.mjs|sam\.glb|bg\/)/.test(f));
 check(!core.length || dirty.includes('sw.js'), 'sw.js đã tăng phiên bản khi đổi mã/nội dung', 'đổi ' + core.slice(0, 3).join(', ') + ' mà chưa tăng gia-su-vNN');
 const ahead = sh('git log origin/main..HEAD --oneline'); ahead ? warn('có commit chưa đẩy', ahead.split('\n').length + ' commit') : ok('mọi commit đã đẩy');
