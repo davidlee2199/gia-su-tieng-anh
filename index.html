@@ -27,12 +27,12 @@
   header .ava { width:40px; height:40px; border-radius:50%; border:2px solid #ffffffcc; object-fit:cover; }
   header h1 { font-size:17px; margin:0; flex:1; min-width:0; line-height:1.25; }
   header h1 small { display:block; font-size:12px; font-weight:400; opacity:.8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  #callBtn { display:flex; align-items:center; gap:5px; background:#22c55e; border:0; color:#fff; border-radius:99px; padding:6px 12px 6px 10px; font-weight:700; font-size:14px; box-shadow:0 2px 8px #22c55e55; }
+  #callBtn { display:flex; align-items:center; gap:5px; background:#22c55e; border:0; color:#fff; border-radius:99px; min-height:40px; padding:0 14px 0 12px; font-weight:700; font-size:14px; box-shadow:0 2px 8px #22c55e55; }
   #callBtn .ic { width:16px; height:16px; }
-  #level { background:#ffffff1f; color:#fff; border:1px solid #ffffff4d; border-radius:99px; padding:5px 11px; font-weight:700; font-size:13px; white-space:nowrap; }
-  #openSet { background:none; border:0; color:#fff; padding:6px; display:grid; place-items:center; }
+  #level { background:#ffffff1f; color:#fff; border:1px solid #ffffff4d; border-radius:99px; min-height:40px; padding:0 13px; font-weight:700; font-size:13px; white-space:nowrap; }
+  #openSet { background:none; border:0; color:#fff; width:44px; height:44px; padding:0; display:grid; place-items:center; }
   nav { display:flex; gap:6px; padding:8px 12px; background:#fff; border-bottom:1px solid var(--line); }
-  nav button { flex:1; display:flex; align-items:center; justify-content:center; gap:6px; border:0; background:none; padding:8px; font-size:15px; font-weight:600; color:var(--mute); border-radius:12px; }
+  nav button { flex:1; display:flex; align-items:center; justify-content:center; gap:6px; border:0; background:none; min-height:42px; padding:0 8px; font-size:15px; font-weight:600; color:var(--mute); border-radius:12px; }
   nav button .ic { width:18px; height:18px; }
   nav button.on { color:var(--main); background:var(--me); }
   .view { flex:1; display:flex; flex-direction:column; min-height:0; }
@@ -45,7 +45,7 @@
   .say { color:var(--main); font-weight:600; }
   .fix { display:block; background:var(--fix); border-left:3px solid #f59e0b; border-radius:8px; padding:5px 9px; margin:6px 0 2px; font-size:14.5px; }
   .fix.tip { background:var(--tip); border-left-color:#3b82f6; margin:0 0 6px; }
-  .ai .play { display:inline-grid; place-items:center; width:30px; height:30px; margin-top:6px; border:0; border-radius:50%; background:var(--me); font-size:14px; }
+  .ai .play { display:inline-grid; place-items:center; width:40px; height:40px; margin-top:4px; border:0; border-radius:50%; background:var(--me); font-size:14px; }
   #modebar { display:flex; align-items:center; gap:8px; background:var(--me); color:var(--main); padding:7px 12px; font-size:13.5px; font-weight:600; border-top:1px solid var(--line); }
   #modebar span { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #modebar button { border:1px solid var(--main); background:#fff; color:var(--main); border-radius:99px; padding:3px 12px; font-weight:600; white-space:nowrap; }
@@ -121,7 +121,7 @@
   #call.has3d h2, #call.has3d #callHint { display:none; }
   #call > #callTop { position:absolute; z-index:3; top:calc(12px + env(safe-area-inset-top)); left:12px; right:12px; display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
   #call:not(.has3d) #samChip { visibility:hidden; }
-  .chip { display:flex; align-items:center; gap:7px; border-radius:99px; padding:7px 13px; color:#fff; font-weight:700; font-size:14px; white-space:nowrap; }
+  .chip { display:flex; align-items:center; gap:7px; border-radius:99px; min-height:40px; padding:0 14px; color:#fff; font-weight:700; font-size:14px; white-space:nowrap; }
   #samChip .dot { width:8px; height:8px; border-radius:50%; background:#a1a1aa; }
   #call[data-st=listening] #samChip .dot { background:#22c55e; box-shadow:0 0 8px #22c55e; }
   #call[data-st=speaking] #samChip .dot { background:#f472b6; box-shadow:0 0 8px #f472b6; }
