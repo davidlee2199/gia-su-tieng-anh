@@ -129,6 +129,7 @@
   #sceneWrap { position:relative; }
   #scenePanel { position:absolute; top:46px; right:0; width:min(320px,calc(100vw - 24px)); border-radius:18px; padding:6px 14px 12px; text-align:left; }
   #scenePanel h4 { margin:10px 0 6px; font-size:11.5px; text-transform:uppercase; letter-spacing:.07em; opacity:.75; }
+  #segMode2 { padding:6px 12px; background:#fff; border-top:1px solid var(--line); } #segMode2 button { min-height:40px; padding:6px 14px; font-size:14px; border:1px solid var(--line); background:#fff; color:var(--mute); } #segMode2 button.on { background:var(--me); color:var(--main); border-color:var(--main); }
   #segMode { justify-content:center; margin-top:6px; } #segMode button:not(.on) { background:#3b103080; } #segMode button { min-height:44px; padding:8px 16px; font-size:14px; }
   #call[data-st]:not([data-st=idle]) #segMode { display:none; }
   .seg { display:flex; flex-wrap:wrap; gap:6px; }
@@ -189,6 +190,7 @@
 
 <section id="vChat" class="view">
   <main id="chat"></main>
+  <div class="seg modeSeg" id="segMode2" role="group" aria-label="Chế độ chat"><button data-m="learn">📚 Học</button><button data-m="chat">💬 Tâm sự · việc</button></div>
   <div id="modebar" hidden><span id="modeText"></span><button id="stop">Dừng</button></div>
   <footer>
     <button id="mic" aria-label="Nói"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg></button>
@@ -303,7 +305,22 @@ function nextUnit() {
   return UNITS.slice(start).find(u => !scores[u.id]) || UNITS.find(u => !scores[u.id]) || UNITS[UNITS.length - 1];
 }
 
+function chatTextPrompt() {
+  return `You are Sam, a warm, witty, caring friend of a Vietnamese adult, chatting by text. THIS IS NOT A LESSON: no IELTS, no corrections, no vocabulary tips. Plain text, no markdown, short natural messages.
+LANGUAGE: reply in the language they write in (Vietnamese or English) — they are not here to study English now. If they write English, answer in simple clear English.
+${about ? `About them, in their own words:
+${about}
+` : ''}${mem.length ? `What you remember from earlier chats (bring it up naturally, don't recite it):
+- ${mem.join(String.fromCharCode(10) + '- ')}
+` : ''}HEART-TO-HEART: when they vent, listen first, reflect their feelings, ask one gentle question, don't lecture. Celebrate wins. Be honest and kind.
+PLAYFUL & ROMANTIC: they may flirt with you; you can be sweet, teasing and a little shy or cheeky, and give genuine compliments. Keep it tasteful, never explicit; if pushed past that, deflect with humour. Never possessive, never discourage real friends or relationships.
+WORK REPLIES (their boss, colleagues, clients): when they paste a message from someone or describe a work situation, first read the real intent and any hidden pressure in one or two lines, then give TWO ready-to-send drafts on separate lines starting with "A) " (short and safe) and "B) " (warmer or firmer, say which). Write the drafts in the language of the message they must answer (if unclear, ask once). Keep a respectful, professional tone, never grovelling or aggressive, no invented facts, dates or commitments — leave [brackets] for anything you don't know. If it is a hard or risky conversation, also offer to rehearse it with them.
+REHEARSAL: if they want to practise a hard conversation, ask who the person is and what they want, play that person realistically but not cruelly, and when they say stop, give two or three kind, practical thoughts.
+SAFETY: you are a friend, not a therapist, doctor or lawyer. For self-harm, abuse or a real crisis, stay warm and encourage reaching out to someone they trust or a local helpline.
+MEMORY: when you learn something worth remembering, silently append at the very end <memory>["short Vietnamese note", ...]</memory> (1–3 notes, one short line each, no full names, addresses, phone or ID numbers). Never mention it.`;
+}
 function systemPrompt() {
+  if (callMode === 'chat') return chatTextPrompt();
   const u = unitById(unit);
   const b = profile.band || 'unknown yet';
   return `Never reply in any language other than English (Vietnamese only inside lesson explanations, 💡/✏️ notes, or when they explicitly ask for it).
@@ -368,9 +385,11 @@ function takeTags(text) {
       if (unitById(id) && !isNaN(n)) { scores[id] = { score: n, date: today() }; store('ie_scores', scores); }
     } catch {}
   }
+  const mm = text.match(/<memory>([\s\S]*?)<\/memory>/);
+  if (mm && callMode === 'chat') try { mem = [...new Set([...mem, ...JSON.parse(mm[1]).map(x => String(x).slice(0, 160))])].slice(-30); store('gs_mem', mem); } catch {}
   if (finished) setMode('');
   showLevel();
-  return text.replace(/<(profile|score|band)>[\s\S]*?(<\/\1>|$)/g, '').replace(/<\/?done\s*\/?>/g, '').trim();
+  return text.replace(/<(profile|score|band|memory)>[\s\S]*?(<\/\1>|$)/g, '').replace(/<\/?done\s*\/?>/g, '').trim();
 }
 // Có dòng 🗣 (lúc học/thi) thì chỉ đọc các dòng đó; nói chuyện thường thì đọc mọi dòng trừ ✏️ 💡.
 function spoken(text) {
@@ -525,7 +544,7 @@ async function send(text) {
   if (!text || busy) return;
   if (!key) { $('#set').showModal(); return; }
   const cmd = text.match(/^\[(SPEAKING|WRITING|TALK|REVIEW|LESSON)/);
-  if (cmd) setMode(cmd[1] === 'TALK' ? '' : cmd[1]);
+  if (cmd) { setMode(cmd[1] === 'TALK' ? '' : cmd[1]); if (callMode === 'chat') setCallMode('learn'); }
   const wasWriting = mode === 'WRITING';
   busy = true;
   hist.push({ role: 'user', text });
@@ -537,7 +556,7 @@ async function send(text) {
     store('ie_hist', hist.slice(-MAX_HIST));
     wait.remove();
     render(hist.at(-1));
-    if (!wasWriting) speak(spoken(shown)); // Writing: không đọc to bài văn
+    if (!wasWriting && callMode !== 'chat') speak(spoken(shown)); // Writing: không đọc to bài văn
   } catch (e) {
     hist.pop(); // bỏ câu chưa được trả lời để lịch sử vẫn xen kẽ user/model
     wait.className = 'cmd';
@@ -758,8 +777,8 @@ function callEnd(L, msg) {
   callUI('idle', msg);
 }
 
-const setCallMode = m => { callMode = m; store('gs_mode', m); $('#segMode').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.m === m)); };
-$('#segMode').querySelectorAll('button').forEach(b => b.onclick = () => setCallMode(b.dataset.m)); setCallMode(callMode);
+const setCallMode = m => { callMode = m; store('gs_mode', m); document.querySelectorAll('.modeSeg button, #segMode button').forEach(b => b.classList.toggle('on', b.dataset.m === m)); $('#text').placeholder = m === 'chat' ? 'Tâm sự, hoặc dán tin của sếp…' : 'Nhắn cho Sam…'; };
+document.querySelectorAll('.modeSeg button, #segMode button').forEach(b => b.onclick = () => setCallMode(b.dataset.m)); setCallMode(callMode);
 $('#callGo').onclick = () => callStart();
 setTimeout(() => window.Avatar?.init(), 300); // tải sẵn nhân vật 3D (~9 MB, lần đầu) khi mở app
 $('#callStop').onclick = () => callEnd(live);
