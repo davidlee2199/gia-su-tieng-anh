@@ -19,6 +19,7 @@ Mã làm một đằng, đặc tả nói một nẻo. Phát hiện: `tools/qa.mj
 | Mặt nạ cây hoa (chạy lại khi đổi tranh nền) | `tools/mat-na-hoa-theo-mua.py` |
 | Cắt video mùa thành vòng lặp | `tools/cat-video-mua-lap-vong.py` |
 | Làm nét video bằng Real-ESRGAN | `tools/lam-net-video-nen.py` |
+| Chuẩn hoá mô hình dù (xoay thẳng, kéo cán, đo hồ sơ mặt tán `PROF`) | `tools/chuan-hoa-du.py` rồi `tools/nen-glb-texture.py` — chạy lại thì phải dán `PROF` mới vào `xianxia.mjs` |
 
 ## Bẫy đã trả giá
 - Heredoc Bash + Python làm `\b` thành ký tự backspace trong regex → viết script ra tệp rồi chạy.

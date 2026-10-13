@@ -18,5 +18,5 @@ Mỗi yêu cầu có mã để dẫn chiếu từ mã và bài kiểm. Cột "Ki
 | REQ-12 | Giao diện dùng được bằng ngón tay trên 360–412 px | Không tràn ngang; nút ≥ 40 px | A-layout |
 | REQ-13 | Cài được như ứng dụng, mở được khi mạng yếu | Manifest + service worker; vỏ app có trong cache | M-06 |
 | REQ-15 | Khung toàn thân: thấy cả chân và bục, không bị hàng nút che | Chân Sam nằm trên hàng nút ở 393×873 | A-frame |
-| REQ-16 | Mưa/giông/tuyết: Sam cầm dù giấy dầu (múi trắng kem–xanh bạc hà, viền đỏ rượu, cán tre có tua); mưa tuyết không rơi dưới dù; hết mưa thì dù đóng | Dù mở khi mưa/giông/tuyết, đóng khi quang/sương; cả tán dù nằm trong màn | A-umbrella, M-08 |
+| REQ-16 | Mưa/giông/tuyết: Sam cầm dù giấy dầu (mô hình 3D `bg/du.glb`); mưa và tuyết CHẠM tán dù chứ không xuyên qua: mưa văng nước + nhỏ giọt từ mép, tuyết tan thành bụi rồi đọng dày dần trên tán; hết mưa tuyết thì tan; hết thì dù đóng | Dù mở khi mưa/giông/tuyết, đóng khi quang/sương; cả tán dù nằm trong màn; hạt trúng tán, ít lọt dưới | A-umbrella, A-physics, M-09 |
 | REQ-14 | Chạy 60 fps trên máy chuẩn, kể cả lúc chuyển cảnh | Đo trên Redmi (xem 05) | M-07 |

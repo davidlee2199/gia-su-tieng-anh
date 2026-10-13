@@ -7,7 +7,7 @@ const ROOT = path.resolve(import.meta.dirname, '..'), CHROME = process.env.CHROM
 const PROFILE = process.env.QA_PROFILE || path.resolve(ROOT, '..', '_tmp-sam', 'chrome-qa-' + Date.now()), PORT = 8771, DBG = 9571;
 const res = []; const ok = (n, d = '') => res.push(['✅', n, d]), bad = (n, d = '') => res.push(['❌', n, d]), warn = (n, d = '') => res.push(['⚠️', n, d]);
 const check = (c, n, d = '') => c ? ok(n) : bad(n, d);
-const sh = c => { try { return execSync(c, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); } catch { return ''; } };
+const sh = c => { try { return execSync(c, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trimEnd(); } catch { return ''; } }; // trimEnd (không trim): dòng đầu của git status bắt đầu bằng khoảng trắng
 const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8'), size = f => fs.statSync(path.join(ROOT, f)).size;
 
 // ───────── QA: mã & kho ─────────
@@ -133,13 +133,16 @@ const FRAME = `(async()=>{const h=window.Avatar.head,u=window.samEnv.userData,{V
   u.setWeather('quang');u.setPhase('ngay');await until(()=>u.umb<.02&&h.camera.position.z<4.4);await new Promise(r=>setTimeout(r,1500));
   r.camClear=+h.camera.position.z.toFixed(1);r.footY=Math.round(foot());r.btnTop=Math.round(btn.top);r.umbClear=+u.umb.toFixed(2);
   u.setWeather('mua');r.opened=await until(()=>u.umb>.95&&h.camera.position.z>4.6);await new Promise(r=>setTimeout(r,1500));
-  const apex=new Vector3(u.umbC.x,u.umbTop,u.umbC.z);r.apexY=Math.round(px(apex).y);r.footRainY=Math.round(foot());r.rimL=Math.round(px(new Vector3(u.umbC.x-u.umbR,u.umbTop-.4,u.umbC.z)).x);r.rimR=Math.round(px(new Vector3(u.umbC.x+u.umbR,u.umbTop-.4,u.umbC.z)).x);r.umbRain=+u.umb.toFixed(2);
-  u.setWeather('tuyet');await new Promise(r=>setTimeout(r,800));r.umbSnow=+u.umb.toFixed(2);
+  r.ready=u.umbReady();const P=u.umbPts();r.apexY=Math.round(px(P[0]).y);r.footRainY=Math.round(foot());r.rimL=Math.round(px(P[1]).x);r.rimR=Math.round(px(P[2]).x);r.umbRain=+u.umb.toFixed(2);
+  u.hits=0;u.leak=0;await new Promise(r=>setTimeout(r,5000));r.hits=u.hits;r.leak=u.leak;  // mưa phải CHẠM tán dù, ít lọt xuống dưới
+  u.setWeather('tuyet');const s0=u.snowAmt||0;await new Promise(r=>setTimeout(r,8000));r.umbSnow=+u.umb.toFixed(2);r.snowGain=+((u.snowAmt||0)-s0).toFixed(3);  // tuyết phải đọng lên tán
   u.setWeather('suong');r.closed=await until(()=>u.umb<.02);r.umbFog=+u.umb.toFixed(2);u.setWeather('quang');
   r.w=innerWidth;return r})()`;
 const fr = await ev(FRAME, 120000);
 check(fr && fr.footY < fr.btnTop - 4 && fr.footY > 0, 'toàn thân: thấy chân Sam (trời quang), nằm trên hàng nút', `chân y=${fr?.footY} · nút y=${fr?.btnTop}`);
-check(fr?.opened && fr.umbRain > .95 && fr.umbSnow > .95, 'mưa/giông/tuyết: Sam cầm dù (mở hết cỡ)', JSON.stringify(fr));
+check(fr?.opened && fr.ready && fr.umbRain > .95 && fr.umbSnow > .95, 'mưa/giông/tuyết: Sam cầm dù Magnific (đã nạp, mở hết cỡ)', JSON.stringify(fr));
+check(fr?.hits > 20 && fr.leak < fr.hits * .3, 'vật lý hạt: giọt mưa chạm tán dù (không xuyên qua)', `chạm ${fr?.hits} · lọt ${fr?.leak}`);
+check(fr?.snowGain > .01, 'vật lý hạt: tuyết đọng dần lên tán dù', 'tăng ' + fr?.snowGain);
 check(fr?.apexY > 0 && fr.rimL > -20 && fr.rimR < fr.w + 20 && fr.footRainY < fr.btnTop - 4, 'có dù: cả tán dù + chân vẫn nằm trong màn', `đỉnh dù y=${fr?.apexY} · mép ${fr?.rimL}..${fr?.rimR}/${fr?.w} · chân ${fr?.footRainY}`);
 check(fr?.umbClear < .05 && fr?.closed, 'trời quang/sương mù: dù đóng', `quang ${fr?.umbClear} · sương ${fr?.umbFog}`);
 const seasons = await ev(`(async()=>{const x=await import('./xianxia.mjs'),r=[];const so=x.seasonOf;

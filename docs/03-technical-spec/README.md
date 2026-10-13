@@ -38,7 +38,9 @@ TalkingHead 1.7 + HeadAudio (visemes) trên three@0.180 (importmap). Máy quay: 
 Mưa/giông/tuyết: đom đóm + bụi nắng = 0; sương mù: nhân 0.5 / 0.3. Mọi thay đổi chuyển dần qua `tween()` (2–3 s).
 
 ## Khung máy toàn thân + dù
-Khung đặt bằng `head.setView('full', {cameraDistance, cameraY, cameraRotateX})` (TalkingHead tự chuyển dần; chỉnh `camera.position` bằng tay sẽ bị nó đè lại): trời quang máy cách 4,2 m nhìn tâm cao 0,7 m; có dù lùi ra 4,95 m, tâm 0,87 m. Mưa/giông/tuyết → `setUmbrella(true)`: dù (`setupUmbrella` trong `xianxia.mjs`) bám theo xương `LeftHand`, nghiêng cho tán nằm trên đầu (`Head`), cán nằm phía trước người; mở dần ~1 s; giọt nước nhỏ từ mép khi mưa; giọt mưa/hạt tuyết nào lọt vào vùng tán thì rơi lại từ trên (`umbC/umbR/umbTop`). Đang cầm dù thì không làm cử chỉ tay và mocap (`umbUp()` trong `index.html`).
+Khung đặt bằng `head.setView('full', {cameraDistance, cameraY, cameraRotateX})` (TalkingHead tự chuyển dần; chỉnh `camera.position` bằng tay sẽ bị nó đè lại): trời quang máy cách 4,2 m nhìn tâm cao 0,7 m; có dù lùi ra 4,95 m, tâm 0,87 m. Mưa/giông/tuyết → `setUmbrella(true)`: dù (`setupUmbrella` trong `xianxia.mjs`, mô hình Magnific `bg/du.glb`, gốc toạ độ = chỗ nắm tay, mép tán cao 0,9 m, bán kính 0,55 m) bám theo xương `LeftHand`, nghiêng cho tán nằm trên đầu (`Head`), cán nằm phía trước người; mở dần ~1 s.
+
+**Vật lý hạt** (`u.collide` gọi từ vòng mưa/tuyết trong `setupWeather`): đổi vị trí hạt về hệ toạ độ dù, so với hồ sơ mặt tán `PROF` (độ cao mặt tán theo bán kính, đo từ mô hình) — hạt vừa đi từ trên xuống qua mặt tán là CHẠM: mưa sinh 3 hạt văng theo pháp tuyến mặt tán rồi rơi theo trọng lực; tuyết tan thành bụi trắng. Hạt đang ở dưới tán thì bị chặn (khô ráo). Nước trượt xuống mép rồi nhỏ giọt từ vành tán (khi mưa). Tuyết đọng: mặt tròn xoay theo `PROF` phủ trắng, dày dần ~25 s, hết tuyết thì tan (4 s dưới mưa, 9 s trời khác). Mưa/tuyết dày gấp đôi trong vùng 1,5 m quanh Sam để thấy được va chạm. Đang cầm dù thì không làm cử chỉ tay và mocap (`umbUp()` trong `index.html`).
 
 ## Nguyên tắc chung
 - Thêm gì vào cảnh thì phải có hành vi theo buổi/thời tiết/mùa (không để vật tĩnh).

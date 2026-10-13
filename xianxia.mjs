@@ -443,19 +443,21 @@ export function setupWeather(scene, env) {
   (function tick(now) {
     const dt = Math.min(.05, (now - last) / 1000); last = now;
     if (rain.visible) {
+      const u = env.userData;
       for (let i = 0; i < NR; i++) {
-        const o = i * 6, d = rv[i] * dt * (kind === 'bao' ? 1.3 : 1);
+        const o = i * 6, d = rv[i] * dt * (kind === 'bao' ? 1.3 : 1), ox = rp[o + 3], oy = rp[o + 4], oz = rp[o + 5];
         rp[o + 1] -= d; rp[o + 4] -= d; rp[o] += d * .12; rp[o + 3] += d * .12;
-        const u = env.userData; // khô ráo dưới dù: giọt nào lọt vào vùng tán thì rơi lại từ trên cao
-        if (rp[o + 4] < -1 || (u.umb > .3 && rp[o + 1] < u.umbTop && Math.hypot(rp[o] - u.umbC.x, rp[o + 2] - u.umbC.z) < u.umbR)) { const x = rnd(-R, R), z = rnd(-R, R), y = TOP; rp.set([x, y, z, x + .04, y - .32, z], o); }
+        // chạm mặt tán dù thì văng nước rồi rơi lại từ trên cao; lọt dưới tán thì bị chặn
+        if (rp[o + 4] < -1 || (u.collide && u.collide(ox, oy, oz, rp[o + 3], rp[o + 4], rp[o + 5], false))) { const near = i % 2, x = near ? rnd(-1.5, 1.5) : rnd(-R, R), z = near ? rnd(-1.5, 1.5) : rnd(-R, R), y = TOP; rp.set([x, y, z, x + .04, y - .32, z], o); }
       }
       rg.attributes.position.needsUpdate = true;
     }
     if (snow.visible) {
+      const u = env.userData;
       for (let i = 0; i < NS; i++) {
+        const ox = sp[i * 3], oy = sp[i * 3 + 1], oz = sp[i * 3 + 2];
         sd[i] += dt; sp[i * 3] += Math.sin(sd[i]) * .006; sp[i * 3 + 1] -= .45 * dt; sp[i * 3 + 2] += Math.cos(sd[i] * .8) * .005;
-        const u = env.userData;
-        if (sp[i * 3 + 1] < -1 || (u.umb > .3 && sp[i * 3 + 1] < u.umbTop && Math.hypot(sp[i * 3] - u.umbC.x, sp[i * 3 + 2] - u.umbC.z) < u.umbR)) { sp[i * 3] = rnd(-R, R); sp[i * 3 + 1] = TOP; sp[i * 3 + 2] = rnd(-R, R); }
+        if (sp[i * 3 + 1] < -1 || (u.collide && u.collide(ox, oy, oz, sp[i * 3], sp[i * 3 + 1], sp[i * 3 + 2], true))) { const near = i % 2; sp[i * 3] = near ? rnd(-1.5, 1.5) : rnd(-R, R); sp[i * 3 + 1] = TOP; sp[i * 3 + 2] = near ? rnd(-1.5, 1.5) : rnd(-R, R); }
       }
       sg.attributes.position.needsUpdate = true;
     }
@@ -536,77 +538,80 @@ function setupFx(scene, env) {
   env.userData.refx();
 }
 
-// ===== Dù giấy dầu kiểu tiên hiệp: Sam cầm (tay trái) khi mưa / giông / tuyết. Múi trắng kem xen xanh bạc hà, viền đỏ rượu
-// (màu tóc Sam), hoa văn sen vàng, cán tre có tua. Mở ra dần; nước nhỏ giọt từ mép dù; mưa/tuyết không rơi vào vùng dưới dù.
+// ===== Dù giấy dầu kiểu tiên hiệp (mô hình 3D làm bằng Magnific: bg/du.glb) — Sam cầm tay trái khi mưa / giông / tuyết.
+// Vật lý hạt: giọt mưa/hạt tuyết rơi trúng MẶT TÁN (so với hồ sơ mặt tán PROF) thì dừng lại: mưa văng nước, tuyết tan thành bụi;
+// nước trượt xuống mép nhỏ giọt, tuyết đọng dày dần trên tán (tan khi hết tuyết); hạt nào lọt dưới tán thì bị chặn (khô ráo).
+// Gốc toạ độ mô hình = chỗ nắm tay; mép tán cao 0,9 m trên gốc; bán kính tán 0,55 m (xem tools/chuan-hoa-du.py).
+const PROF = { dr: 0.0401, h: [1.129, 1.129, 1.116, 1.097, 1.086, 1.075, 1.069, 1.052, 1.034, 1.014, 0.992, 0.968, 0.944, 0.923] }, RIM_Y = .9, RC = .55;
+const profH = r => { const f = Math.min(PROF.h.length - 1.001, Math.max(0, r / PROF.dr - .5)), i = Math.floor(f), a = PROF.h[i], b = PROF.h[i + 1]; return a + (b - a) * (f - i); };
 function setupUmbrella(scene, env) {
-  const RIM_Y = .92, RC = .52, RS = .66, TH = Math.asin(RC / RS), g = new THREE.Group(); g.visible = false; env.add(g);
-  const tex = canvasTex(1024, 256, (c, w, h) => {
-    c.translate(0, h); c.scale(1, -1); // ảnh vẽ từ đỉnh xuống viền; lật để khớp cách trải UV của mặt cầu
-    const N = 16, gw = w / N;
-    for (let i = 0; i < N; i++) { c.fillStyle = i % 2 ? '#c9ecdb' : '#fff3df'; c.fillRect(i * gw, 0, gw + 1, h); }
-    c.strokeStyle = '#d9a63a'; c.lineWidth = 3; // sườn vàng giữa các múi
-    for (let i = 0; i <= N; i++) { c.beginPath(); c.moveTo(i * gw, 0); c.lineTo(i * gw, h * .86); c.stroke(); }
-    for (let i = 0; i < N; i++) { // cánh sen vàng trong mỗi múi
-      const x = i * gw + gw / 2; c.strokeStyle = '#d9a63a'; c.fillStyle = i % 2 ? 'rgba(255,255,255,.55)' : 'rgba(201,236,219,.7)'; c.lineWidth = 2.2;
-      c.beginPath(); c.moveTo(x, h * .24); c.quadraticCurveTo(x + gw * .36, h * .46, x, h * .7); c.quadraticCurveTo(x - gw * .36, h * .46, x, h * .24); c.fill(); c.stroke();
-      c.fillStyle = '#d9a63a'; c.beginPath(); c.arc(x, h * .76, 3.4, 0, 7); c.fill();
+  const g = new THREE.Group(); g.visible = false; env.add(g);
+  new GLTFLoader().load('bg/du.glb', gl => {
+    gl.scene.traverse(o => { if (o.isMesh) { const map = o.material.map; map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 4;
+      o.material = new THREE.MeshBasicMaterial({ map, toneMapped: false, side: THREE.DoubleSide }); PLAT.push(o.material); } });
+    g.add(gl.scene); g.userData.ready = true;
+  }, undefined, e => console.warn('dù', e));
+  // lớp tuyết đọng: mặt tròn xoay theo đúng hồ sơ mặt tán, nhích lên 1,2 cm
+  const pts = [new THREE.Vector2(0, PROF.h[0] + .012)]; PROF.h.forEach((h, i) => pts.push(new THREE.Vector2((i + .5) * PROF.dr, h + .012))); pts.push(new THREE.Vector2(RC, RIM_Y + .012));
+  const snowMat = new THREE.MeshBasicMaterial({ color: 0xf4f8ff, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2 });
+  const snowCap = new THREE.Mesh(new THREE.LatheGeometry(pts, 48), snowMat); snowCap.visible = false; g.add(snowCap); PLAT.push(snowMat);
+  // hạt văng nước / bụi tuyết + giọt nhỏ từ mép (một bể hạt dùng chung)
+  const NP = 360, pp = new Float32Array(NP * 3), pc = new Float32Array(NP * 3), pv = new Float32Array(NP * 3), pl = new Float32Array(NP), pk = new Uint8Array(NP); let pn = 0;
+  const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.BufferAttribute(pp, 3)); pg.setAttribute('color', new THREE.BufferAttribute(pc, 3));
+  const parts = new THREE.Points(pg, new THREE.PointsMaterial({ map: glow('rgba(255,255,255,1)', 32), size: .06, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+  parts.frustumCulled = false; env.add(parts);
+  const u = env.userData; u.umb = 0; let want = 0, snowAmt = 0;
+  const inv = new THREE.Matrix4(), v0 = new THREE.Vector3(), v1 = new THREE.Vector3(), nW = new THREE.Vector3(), q = new THREE.Quaternion();
+  const spawn = (x, y, z, vx, vy, vz, life, kind) => { const i = pn++ % NP; pp.set([x, y, z], i * 3); pv.set([vx, vy, vz], i * 3); pl[i] = life; pk[i] = kind; };
+  // va chạm: trả 1 = trúng mặt tán (đã sinh hạt văng), 2 = đang ở dưới tán (chặn), 0 = không
+  u.collide = (x0, y0, z0, x1, y1, z1, snowy) => {
+    if (u.umb < .3 || !g.userData.ready) return 0;
+    v1.set(x1, y1, z1).applyMatrix4(inv); const r = Math.hypot(v1.x, v1.z); if (r > RC) return 0;
+    const h = profH(r);
+    if (v1.y < h && v1.y > RIM_Y - 1.1) { // đã xuyên qua mặt tán hoặc đang dưới tán
+      v0.set(x0, y0, z0).applyMatrix4(inv);
+      if (v0.y >= h - .001 && Math.hypot(v0.x, v0.z) <= RC + .02) { // vừa rơi từ trên xuống chạm mặt tán
+        const hp = (profH(Math.min(RC, r + .02)) - profH(Math.max(0, r - .02))) / (r + .02 - Math.max(0, r - .02)), ph = Math.atan2(v1.z, v1.x);
+        nW.set(-hp * Math.cos(ph), 1, -hp * Math.sin(ph)).normalize().applyQuaternion(q); v1.set(v1.x, h + .01, v1.z).applyMatrix4(g.matrixWorld);
+        if (snowy) spawn(v1.x, v1.y, v1.z, nW.x * .15, nW.y * .2, nW.z * .15, .35, 1);
+        else for (let k = 0; k < 3; k++) spawn(v1.x, v1.y, v1.z, nW.x * 1.1 + rnd(-.7, .7), nW.y * 1.4 + rnd(0, .9), nW.z * 1.1 + rnd(-.7, .7), rnd(.25, .45), 0);
+        u.hits = (u.hits || 0) + 1;
+        return 1;
+      }
+      u.leak = (u.leak || 0) + 1; return 2;
     }
-    c.fillStyle = '#9b1c3c'; c.fillRect(0, h * .86, w, h * .14); // viền đỏ rượu
-    c.strokeStyle = '#f0c76a'; c.lineWidth = 4; c.beginPath(); c.moveTo(0, h * .86); c.lineTo(w, h * .86); c.stroke();
-    c.fillStyle = 'rgba(255,240,210,.9)'; for (let i = 0; i < N * 2; i++) { c.beginPath(); c.arc((i + .5) * gw / 2, h * .93, 3, 0, 7); c.fill(); }
-    c.fillStyle = '#e8b84a'; c.beginPath(); c.arc(w / 2, 6, 40, 0, 7); c.fill(); // đỉnh
-  });
-  tex.wrapS = THREE.RepeatWrapping; tex.flipY = false; // đỉnh dù = phía trên ảnh, viền đỏ = phía dưới ảnh
-  const cap = new THREE.SphereGeometry(RS, 64, 14, 0, Math.PI * 2, 0, TH); // uv.y đã chạy 1 (đỉnh) → 0 (viền) theo hàng, không cần chỉnh
-  cap.translate(0, RIM_Y - RS * Math.cos(TH), 0);
-  const top = new THREE.Mesh(cap, new THREE.MeshBasicMaterial({ map: tex, side: THREE.FrontSide, toneMapped: false }));
-  const under = new THREE.Mesh(cap, new THREE.MeshBasicMaterial({ color: 0xf1dcc0, side: THREE.BackSide, toneMapped: false }));
-  const canopy = new THREE.Group(); canopy.add(top, under);
-  // nan dù (nhìn thấy từ phía dưới)
-  const ribs = []; for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; for (let j = 0; j < 8; j++) { const t0 = TH * j / 8, t1 = TH * (j + 1) / 8, y0 = RS * Math.cos(t0) + RIM_Y - RS * Math.cos(TH), y1 = RS * Math.cos(t1) + RIM_Y - RS * Math.cos(TH);
-    ribs.push(Math.cos(a) * RS * Math.sin(t0) * .995, y0 - .004, Math.sin(a) * RS * Math.sin(t0) * .995, Math.cos(a) * RS * Math.sin(t1) * .995, y1 - .004, Math.sin(a) * RS * Math.sin(t1) * .995); } }
-  const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.Float32BufferAttribute(ribs, 3)); canopy.add(new THREE.LineSegments(rg, new THREE.LineBasicMaterial({ color: 0x8a6a35, toneMapped: false })));
-  const bamboo = new THREE.MeshBasicMaterial({ color: 0xa97c45, toneMapped: false }), gold = new THREE.MeshBasicMaterial({ color: 0xe8b84a, toneMapped: false });
-  const pole = new THREE.Mesh(new THREE.CylinderGeometry(.011, .014, 1.34, 10), bamboo); pole.position.y = .56; g.add(pole);
-  for (const y of [-.04, .03, .5, .88]) { const r = new THREE.Mesh(new THREE.TorusGeometry(.016, .005, 6, 14), gold); r.rotation.x = Math.PI / 2; r.position.y = y; g.add(r); }
-  const fin = new THREE.Mesh(new THREE.ConeGeometry(.02, .08, 10), gold); fin.position.y = RIM_Y + RS * (1 - Math.cos(TH)) + .04; g.add(fin);
-  const tas = new THREE.Group(); tas.position.y = .02; g.add(tas); // tua đỏ rủ dưới cán
-  const cord = new THREE.Mesh(new THREE.CylinderGeometry(.004, .004, .16, 5), new THREE.MeshBasicMaterial({ color: 0x9b1c3c, toneMapped: false })); cord.position.y = -.08; tas.add(cord);
-  const tuft = new THREE.Mesh(new THREE.ConeGeometry(.022, .1, 8), new THREE.MeshBasicMaterial({ color: 0xb8283f, toneMapped: false })); tuft.position.y = -.2; tuft.rotation.x = Math.PI; tas.add(tuft);
-  g.add(canopy);
-  PLAT.push(top.material, under.material, bamboo, gold); // ám màu theo trời như bục
-  // giọt nước nhỏ từ mép dù (chỉ lúc mưa)
-  const ND = 36, dp = new Float32Array(ND * 3), dph = new Float32Array(ND).map(() => Math.random()), dang = new Float32Array(ND).map(() => Math.random() * 6.28);
-  const dg = new THREE.BufferGeometry(); dg.setAttribute('position', new THREE.BufferAttribute(dp, 3));
-  const drips = new THREE.Points(dg, new THREE.PointsMaterial({ map: glow('rgba(255,255,255,1)', 32), size: .035, color: 0xd8ecff, transparent: true, opacity: .9, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
-  drips.frustumCulled = false; drips.visible = false; env.add(drips);
-
-  const u = env.userData; u.umb = 0; u.umbTop = 2.3; u.umbR = RC; u.umbC = new THREE.Vector3(); let want = 0;
+    return 0;
+  };
+  u.umbReady = () => !!g.userData.ready; // cho QA
+  u.umbPts = () => [[0, 1.2, 0], [-RC, RIM_Y, 0], [RC, RIM_Y, 0]].map(a => g.localToWorld(new THREE.Vector3(...a))); // đỉnh dù + 2 mép (thế giới)
   u.setUmbrella = on => {
     if (on === !!want) return; want = on ? 1 : 0; const from = u.umb;
     u.onUmb?.(!!on); // đổi khung máy (TalkingHead tự chuyển dần)
     tween('umb', on ? 1.1 : .8, x => { u.umb = from + (want - from) * x; });
   };
-  const hv = new THREE.Vector3(), hd = new THREE.Vector3(); let t0 = performance.now();
+  const hv = new THREE.Vector3(), hd = new THREE.Vector3(), rim = new THREE.Vector3(); let t0 = performance.now(), last = t0;
   (function tick(now) {
-    const k = u.umb, t = (now - t0) / 1000;
-    g.visible = k > .01;
+    const k = u.umb, t = (now - t0) / 1000, dt = Math.min(.05, (now - last) / 1000); last = now;
+    g.visible = k > .01 && !!g.userData.ready;
     if (g.visible && u.hand) {
       u.hand.getWorldPosition(hv); u.head?.getWorldPosition(hd); env.worldToLocal(hv); env.worldToLocal(hd);
-      const L = 1.1 + RS * (1 - Math.cos(TH)) * .3; // nghiêng cho tán nằm trên đầu Sam
-      g.position.copy(hv); g.position.y -= .05; g.position.z += .13; // cán dù nằm phía trước người để thấy tay cầm
-      g.rotation.set(.04, 0, Math.asin(Math.max(-.5, Math.min(.5, (hv.x - hd.x) / L))));
-      g.scale.setScalar(.55 + .45 * k); canopy.scale.set(.2 + .8 * k, .35 + .65 * k, .2 + .8 * k); // xoè ra dần
-      tas.rotation.z = Math.sin(t * 2.1) * .12; tas.rotation.x = Math.sin(t * 1.7) * .1;
-      canopy.updateWorldMatrix(true, false); u.umbC.set(0, 0, 0).applyMatrix4(canopy.matrixWorld); u.umbC.y = 0;
-      const top0 = new THREE.Vector3(0, RIM_Y, 0).applyMatrix4(canopy.matrixWorld); u.umbTop = top0.y + .4; u.umbC.x = top0.x; u.umbC.z = top0.z; u.umbR = RC * (.2 + .8 * k) * g.scale.x + .04;
-      const wet = (u.weather === 'mua' || u.weather === 'bao') && k > .7; drips.visible = wet;
-      if (wet) for (let i = 0; i < ND; i++) {
-        const ph = (dph[i] + t * .6) % 1, a = dang[i], r = u.umbR - .04;
-        dp[i * 3] = top0.x + Math.cos(a) * r; dp[i * 3 + 2] = top0.z + Math.sin(a) * r; dp[i * 3 + 1] = top0.y - ph * ph * 1.7;
+      g.position.copy(hv); g.position.y -= .03; g.position.z += .13; // cán nằm phía trước người để thấy tay cầm
+      g.rotation.set(.04, 0, Math.asin(Math.max(-.5, Math.min(.5, (hv.x - hd.x) / 1.1))));
+      g.scale.setScalar(.5 + .5 * k); g.updateMatrixWorld(true); inv.copy(g.matrixWorld).invert(); g.getWorldQuaternion(q);
+      const snowing = u.weather === 'tuyet', wet = u.weather === 'mua' || u.weather === 'bao';
+      snowAmt = snowing && k > .7 ? Math.min(1, snowAmt + dt / 25) : Math.max(0, snowAmt - dt / (wet ? 4 : 9)); // tuyết đọng dày dần ~25 s, hết tuyết thì tan
+      snowMat.opacity = snowAmt * .93; snowCap.visible = snowAmt > .01; u.snowAmt = snowAmt;
+      if (wet && k > .6) for (let n = 0; n < 2; n++) { // nước trượt xuống mép rồi nhỏ giọt
+        const a = Math.random() * 6.283; rim.set(Math.cos(a) * RC * .98, RIM_Y - .01, Math.sin(a) * RC * .98).applyMatrix4(g.matrixWorld); if (Math.random() < dt * 40) spawn(rim.x, rim.y, rim.z, 0, -.2, 0, rnd(.5, .8), 2);
       }
-      if (wet) dg.attributes.position.needsUpdate = true;
     }
+    for (let i = 0; i < NP; i++) { // cập nhật hạt: văng nước, bụi tuyết, giọt nhỏ
+      if (pl[i] <= 0) { pc[i * 3] = pc[i * 3 + 1] = pc[i * 3 + 2] = 0; continue; }
+      pl[i] -= dt; const o = i * 3, kd = pk[i]; pv[o + 1] -= (kd === 1 ? .6 : 9.8) * dt;
+      pp[o] += pv[o] * dt; pp[o + 1] += pv[o + 1] * dt; pp[o + 2] += pv[o + 2] * dt;
+      const f = Math.max(0, Math.min(1, pl[i] / .3)); pc[o] = pc[o + 1] = pc[o + 2] = 0; if (kd === 1) { pc[o] = pc[o + 1] = pc[o + 2] = .9 * f; } else { pc[o] = .7 * f; pc[o + 1] = .85 * f; pc[o + 2] = f; }
+    }
+    pg.attributes.position.needsUpdate = true; pg.attributes.color.needsUpdate = true;
     requestAnimationFrame(tick);
   })(t0);
 }
