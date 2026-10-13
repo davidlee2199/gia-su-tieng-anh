@@ -140,7 +140,7 @@ const FRAME = `(async()=>{const h=window.Avatar.head,u=window.samEnv.userData,{V
   r.w=innerWidth;return r})()`;
 const fr = await ev(FRAME, 120000);
 check(fr && fr.footY < fr.btnTop - 4 && fr.footY > 0, 'toàn thân: thấy chân Sam (trời quang), nằm trên hàng nút', `chân y=${fr?.footY} · nút y=${fr?.btnTop}`);
-check(fr?.opened && fr.ready && fr.umbRain > .95 && fr.umbSnow > .95, 'mưa/giông/tuyết: Sam cầm dù Magnific (đã nạp, mở hết cỡ)', JSON.stringify(fr));
+check(fr?.opened && fr.ready && fr.umbRain > .95 && fr.umbSnow > .95, 'mưa/giông/tuyết: dù Magnific lơ lửng (đã nạp, mở hết cỡ)', JSON.stringify(fr));
 check(fr?.hits > 20 && fr.leak < fr.hits * .3, 'vật lý hạt: giọt mưa chạm tán dù (không xuyên qua)', `chạm ${fr?.hits} · lọt ${fr?.leak}`);
 check(fr?.snowGain > .01, 'vật lý hạt: tuyết đọng dần lên tán dù', 'tăng ' + fr?.snowGain);
 check(fr?.apexY > 0 && fr.rimL > -20 && fr.rimR < fr.w + 20 && fr.footRainY < fr.btnTop - 4, 'có dù: cả tán dù + chân vẫn nằm trong màn', `đỉnh dù y=${fr?.apexY} · mép ${fr?.rimL}..${fr?.rimR}/${fr?.w} · chân ${fr?.footRainY}`);

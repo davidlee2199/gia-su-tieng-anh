@@ -786,12 +786,11 @@ const REACT = [
   [/\?\s*$/, null, '🤔'],
 ];
 let fired = new Set(), lastGesture = 0, lastNod = 0;
-const umbUp = () => (window.samEnv?.userData.umb || 0) > .3; // đang cầm dù: tay trái giữ dù nên không làm cử chỉ tay
-function cute(name, dur = 2.5) { if (umbUp() && /^[a-z]+$/.test(name)) return; try { head?.playGesture(name, dur, Math.random() < .5); } catch {} }
+function cute(name, dur = 2.5) { try { head?.playGesture(name, dur, Math.random() < .5); } catch {} }
 // Động tác mocap thật (Bandai Namco); lỗi mạng thì dùng cử chỉ tay có sẵn.
 let mocapBusy = false;
 async function mocap(name, fallback) {
-  if (mocapBusy || umbUp()) return; mocapBusy = true;
+  if (mocapBusy) return; mocapBusy = true;
   const ok = await playMocap(head, name, 1);
   if (!ok && fallback) cute(fallback, 2.8);
   setTimeout(() => mocapBusy = false, /dance/.test(name) ? 15000 : 4000);

@@ -593,10 +593,9 @@ function setupUmbrella(scene, env) {
   (function tick(now) {
     const k = u.umb, t = (now - t0) / 1000, dt = Math.min(.05, (now - last) / 1000); last = now;
     g.visible = k > .01 && !!g.userData.ready;
-    if (g.visible && u.hand) {
-      u.hand.getWorldPosition(hv); u.head?.getWorldPosition(hd); env.worldToLocal(hv); env.worldToLocal(hd);
-      g.position.copy(hv); g.position.y -= .03; g.position.z += .13; // cán nằm phía trước người để thấy tay cầm
-      g.rotation.set(.04, 0, Math.asin(Math.max(-.5, Math.min(.5, (hv.x - hd.x) / 1.1))));
+    if (g.visible && u.head) {
+      u.head.getWorldPosition(hd); env.worldToLocal(hd); // dù không cán lơ lửng trên đầu (kiểu tu tiên), nhấp nhô nhẹ
+      g.position.set(hd.x, hd.y - .62 + Math.sin(t * 1.3) * .025, hd.z); g.rotation.set(Math.sin(t * .9) * .02, t * .15, Math.sin(t * .7) * .025);
       g.scale.setScalar(.5 + .5 * k); g.updateMatrixWorld(true); inv.copy(g.matrixWorld).invert(); g.getWorldQuaternion(q);
       const snowing = u.weather === 'tuyet', wet = u.weather === 'mua' || u.weather === 'bao';
       snowAmt = snowing && k > .7 ? Math.min(1, snowAmt + dt / 25) : Math.max(0, snowAmt - dt / (wet ? 4 : 9)); // tuyết đọng dày dần ~25 s, hết tuyết thì tan
