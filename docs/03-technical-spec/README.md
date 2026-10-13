@@ -21,6 +21,7 @@ TalkingHead 1.7 + HeadAudio (visemes) trên three@0.180 (importmap). Máy quay: 
 | Mùa | Điều kiện | Video | Cây hoa trên tranh | Hạt rơi |
 |---|---|---|---|---|
 | Xuân | Bắc: tháng 2–4 | v-xuan | hồng (gốc) | cánh hồng |
+
 | Hạ | Bắc: 5–7 | v-ha | đỏ phượng | đỏ cam |
 | Thu | Bắc: 8–10 | v-thu | vàng cam | lá cam |
 | Đông | Bắc: 11–1 | v-dong | trắng | không |
@@ -46,3 +47,8 @@ Khung đặt bằng `head.setView('full', {cameraDistance, cameraY, cameraRotate
 - Thêm gì vào cảnh thì phải có hành vi theo buổi/thời tiết/mùa (không để vật tĩnh).
 - Mọi giá trị thời gian đổi dần bằng `tween`, không bật tắt cái rụp.
 - Mất tài nguyên (video, mạng thời tiết, bục) → lùi về bản đơn giản, không làm hỏng app.
+
+
+## Chế độ gọi: Học / Tâm sự
+
+`callMode` (`gs_mode` trong localStorage) chọn prompt Gemini Live: `livePrompt()` (gia sư IELTS) hoặc `chatPrompt()` (bạn tâm sự: không dạy, tán tỉnh tinh tế, tập dượt cuộc nói chuyện khó, rào an toàn — ý tưởng từ `03 - Agent-Workspace`/UOS "tập dượt + góc nhìn"). Trí nhớ kiểu biên bản (ý tưởng từ `04 - Agent-Cuoc-Hop`): tool `save_memory` lưu tối đa 30 ghi chú ngắn tiếng Việt vào `gs_mem` (chỉ trên máy, bị xoá khi "Xoá hết dữ liệu"), nạp lại vào prompt buổi sau. Ở chế độ Tâm sự `save_profile` bị bỏ qua nên không đổi band IELTS.

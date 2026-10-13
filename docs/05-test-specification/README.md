@@ -13,6 +13,7 @@
 | A-frame | Chân Sam nằm trên hàng nút (khổ 393×873) |
 | A-umbrella | Mưa/giông/tuyết: dù (mô hình) đã nạp, mở hết cỡ, tán + chân nằm trong màn; quang/sương: dù đóng |
 | A-physics | Mưa: ≥ 20 va chạm tán trong 5 s và lọt dưới < 30%; tuyết: độ đọng tăng dần |
+| A-chat | Chế độ Tâm sự: prompt có luật chỉ nói tiếng Anh + không dạy, không còn nội dung IELTS, nạp ghi chú trí nhớ; có 2 nút chọn chế độ |
 | A-lang | Luật "chỉ nói tiếng Anh" có trong lời dặn; `FOREIGN` bắt đúng; |
 | A-chat | Dòng 💡 ✏️ 🗣 có kiểu riêng; tab IELTS và Cài đặt mở được |
 | A-console | Không lỗi console/exception cả phiên |

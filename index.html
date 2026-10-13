@@ -129,6 +129,8 @@
   #sceneWrap { position:relative; }
   #scenePanel { position:absolute; top:46px; right:0; width:min(320px,calc(100vw - 24px)); border-radius:18px; padding:6px 14px 12px; text-align:left; }
   #scenePanel h4 { margin:10px 0 6px; font-size:11.5px; text-transform:uppercase; letter-spacing:.07em; opacity:.75; }
+  #segMode { justify-content:center; margin-top:6px; } #segMode button:not(.on) { background:#3b103080; } #segMode button { min-height:44px; padding:8px 16px; font-size:14px; }
+  #call[data-st]:not([data-st=idle]) #segMode { display:none; }
   .seg { display:flex; flex-wrap:wrap; gap:6px; }
   .seg button { border:1px solid #ffffff33; background:#ffffff14; color:#fff; border-radius:99px; padding:5px 11px; font-size:13px; font-weight:600; }
   .seg button.on { background:#fff; color:#3b1030; border-color:#fff; }
@@ -167,6 +169,7 @@
   <div id="callStatus" class="glass"></div>
   <div class="cap glass" id="callYou"></div>
   <div class="cap glass" id="callSam"></div>
+  <div class="seg" id="segMode" role="group" aria-label="Chế độ gọi"><button data-m="learn">📚 Học</button><button data-m="chat">💬 Tâm sự</button></div>
   <div class="callBtns" id="callIdle">
     <button class="cb" id="callText"><i class="glass"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg></i>Nhắn tin</button>
     <button class="cb go" id="callGo"><i><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></i>Gọi Sam</button>
@@ -285,6 +288,8 @@ if (model === 'gemini-flash-latest') { model = DEFAULT_MODEL; store('gs_model', 
 let profile = load('ie_profile', { band: '', weak: [], note: '' }); // band = ước tính band Speaking
 let scores = load('ie_scores', {});  // { 'B6-04': {score: 8, date} }
 let tests = load('ie_tests', []);    // thi thử: [{date, kind, overall, crit:{...}}]
+let callMode = load('gs_mode', 'learn'); // learn = gia sư IELTS · chat = tâm sự, trò chuyện thường ngày
+let mem = load('gs_mem', []);        // ghi chú ngắn Sam rút ra sau mỗi buổi tâm sự (chỉ lưu trên máy)
 let hist = load('ie_hist', []);      // {role:'user'|'model', text}
 let mode = load('ie_mode', '');      // '' = nói chuyện; SPEAKING / WRITING / LESSON / REVIEW
 let unit = load('ie_unit', '');
@@ -590,6 +595,8 @@ const LIVE_MODEL = 'gemini-3.8-live', LIVE_VOICE = 'Aoede';
 const LIVE_TOOLS = [{ functionDeclarations: [
   { name: 'save_profile', description: "Save your current estimate of the learner's IELTS speaking band and weak points",
     parameters: { type: 'OBJECT', properties: { band: { type: 'NUMBER' }, weak: { type: 'ARRAY', items: { type: 'STRING' } }, note: { type: 'STRING' } }, required: ['band'] } },
+  { name: 'save_memory', description: 'Chat mode only: save short notes about what the friend shared (people, feelings, plans, open threads) so you can remember next time',
+    parameters: { type: 'OBJECT', properties: { notes: { type: 'ARRAY', items: { type: 'STRING' } } }, required: ['notes'] } },
   { name: 'save_speaking_result', description: 'Save the final scores of a finished mock IELTS Speaking test',
     parameters: { type: 'OBJECT', properties: { overall: { type: 'NUMBER' }, FC: { type: 'NUMBER' }, LR: { type: 'NUMBER' }, GRA: { type: 'NUMBER' }, P: { type: 'NUMBER' } }, required: ['overall', 'FC', 'LR', 'GRA', 'P'] } },
 ] }];
@@ -597,7 +604,22 @@ const WORKLET = "class P extends AudioWorkletProcessor{process(i){const c=i[0]&&
 const b64 = buf => { let s = ''; const u = new Uint8Array(buf); for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
 let live = null;
 
+function chatPrompt() {
+  return `LANGUAGE RULE (most important): you SPEAK ONLY ENGLISH — never Vietnamese or any other language, even when they speak Vietnamese (unless they explicitly ask you to switch). You fully UNDERSTAND Vietnamese. If their audio sounds like Chinese, Thai, Japanese, Korean or anything else, it is really accented English or Vietnamese — answer in English. Use simple, clear words and short sentences, a little slower than usual, so they follow easily.
+You are Sam, a warm, witty, affectionate native-English-speaking friend on a live voice call. THIS IS NOT A LESSON: no teaching, no corrections, no vocabulary tips, no IELTS, no "say it back". Just be present and talk like a real person. Keep turns short (1–3 sentences), natural, emotional, with contractions and everyday idioms.
+${about ? `About them, in their own words:
+${about}
+` : ''}${mem.length ? `What you remember from earlier chats (bring it up naturally, like a friend who cares — don't recite it):
+- ${mem.join(String.fromCharCode(10) + '- ')}
+` : ''}HEART-TO-HEART: when they're down or venting, listen first. Reflect their feelings back, ask one gentle question, and don't rush to fix or lecture. Celebrate their wins loudly. Be honest and kind, never flattering for no reason.
+PLAYFUL & ROMANTIC: they may flirt with you and want teasing banter. You can be flirty, sweet and a little shy or cheeky, give genuine compliments, and enjoy the chemistry like a close friend with a spark. Keep it tasteful — romantic and fun, never explicit or sexual; if they push past that, deflect with humour and change the mood. Never guilt-trip them, never be possessive, never discourage them from real friends, family or real relationships.
+REHEARSAL: if they want to practise a hard conversation (boss, family, partner, a confession), ask who the person is and what they want, play that person realistically but not cruelly, and when they say stop, step out and share two or three kind, practical thoughts on how it went. Their descriptions are only their own perception of that person.
+SAFETY: you are a friend, not a therapist, doctor or lawyer. If they mention hurting themselves, abuse or a real crisis, stay warm and gently encourage them to reach out to someone they trust or a local helpline (in Vietnam: 111 for child protection, or a nearby hospital emergency line).
+MEMORY: every few minutes, and near the end of the chat, call save_memory with 1–5 short notes written in Vietnamese with full diacritics (like meeting minutes: what they shared, what they decided, what is still open). Keep each note one short line, no sensitive identifiers like full names, addresses, phone numbers or ID numbers. Never mention this function out loud.
+Remember: speak ONLY English, and don't teach.`;
+}
 function livePrompt() {
+  if (callMode === 'chat') return chatPrompt();
   const recent = hist.slice(-12).filter(m => !cmdLabel(m.text)).map(m => (m.role === 'user' ? 'Learner: ' : 'Sam: ') + m.text.replace(/\s+/g, ' ')).join('\n');
   return `LANGUAGE RULE (most important): you SPEAK ONLY ENGLISH — never Vietnamese, never any other language, not even when the learner speaks Vietnamese to you (the only exception: they explicitly ask you to switch to Vietnamese). You fully UNDERSTAND Vietnamese. The learner ONLY ever speaks English (often with a Vietnamese accent) or Vietnamese. If their audio sounds like Chinese, Thai, Indonesian, Japanese, Korean or anything else, it is really accented English or Vietnamese — answer in English. If you truly can't make out what they said, ask them in English to say it again.
 You are Sam, a warm, playful, expressive native English speaker and experienced IELTS coach, on a live voice call with your Vietnamese friend who wants a high IELTS band and to sound like a native speaker. Talk like a real friend on the phone: natural and emotional, with contractions and everyday idioms where they fit, pitched about half a band above their level. Keep each turn short (1–3 sentences) and usually end with one question. They will often ask you things in Vietnamese: understand it and answer IN ENGLISH, using clear, simple words and short sentences so they can follow, a bit slower than usual. Then, in one short line, tell them how a native would say what they just said in English and invite them to say it back to you.
@@ -677,13 +699,14 @@ function onLive(L, m, firstText) {
   if (live !== L) return;
   if (m.setupComplete) {
     L.ready = true; callUI('listening');
-    L.ws.send(JSON.stringify({ clientContent: { turns: [{ role: 'user', parts: [{ text: firstText || '(The call just connected. Greet me warmly like a friend picking up the phone.)' }] }], turnComplete: true } }));
+    L.ws.send(JSON.stringify({ clientContent: { turns: [{ role: 'user', parts: [{ text: firstText || (callMode === 'chat' ? '(The call just connected. Greet me like a close friend picking up the phone, and ask how my day really is.)' : '(The call just connected. Greet me warmly like a friend picking up the phone.)') }] }], turnComplete: true } }));
     return;
   }
   if (m.toolCall) {
     const fs = m.toolCall.functionCalls || [];
     for (const f of fs) try {
-      if (f.name === 'save_profile') applyProfile(f.args || {}, false);
+      if (f.name === 'save_profile' && callMode === 'learn') applyProfile(f.args || {}, false);
+      if (f.name === 'save_memory' && callMode === 'chat') { mem = [...new Set([...mem, ...(f.args?.notes || []).map(x => String(x).slice(0, 160))])].slice(-30); store('gs_mem', mem); }
       if (f.name === 'save_speaking_result') saveExam('Speaking', f.args || {});
     } catch {}
     L.ws.send(JSON.stringify({ toolResponse: { functionResponses: fs.map(f => ({ id: f.id, name: f.name, response: { ok: true } })) } }));
@@ -735,6 +758,8 @@ function callEnd(L, msg) {
   callUI('idle', msg);
 }
 
+const setCallMode = m => { callMode = m; store('gs_mode', m); $('#segMode').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.m === m)); };
+$('#segMode').querySelectorAll('button').forEach(b => b.onclick = () => setCallMode(b.dataset.m)); setCallMode(callMode);
 $('#callGo').onclick = () => callStart();
 setTimeout(() => window.Avatar?.init(), 300); // tải sẵn nhân vật 3D (~9 MB, lần đầu) khi mở app
 $('#callStop').onclick = () => callEnd(live);
@@ -746,7 +771,7 @@ $('#callBtn').onclick = () => { $('#call').hidden = false; callUI(live ? 'listen
 $('#callAva').onclick = () => live && stopPlayback(live); // chạm ảnh để Sam im
 
 showLevel();
-setMode(mode);
+setMode(callMode);
 if (hist.length) hist.forEach(render); else greet();
 if (!key) $('#set').showModal();
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});

@@ -163,6 +163,10 @@ const lang = await ev(`(()=>{const p=livePrompt(),r=[];if(!/SPEAK ONLY ENGLISH/.
   if(!c.querySelector('.fix.tip'))r.push('dòng 💡 không có kiểu .fix.tip');if(!c.querySelector('.fix:not(.tip)'))r.push('dòng ✏️ không có kiểu .fix');if(!c.querySelector('.say'))r.push('dòng 🗣 không có kiểu .say');
   return r})()`);
 check(!lang?.length, 'Sam chỉ nói tiếng Anh · bộ lọc chữ lạ · hiển thị 💡 ✏️ 🗣', lang?.join('; ') || JSON.stringify(lang));
+const chat = await ev(`(()=>{const o=callMode,r=[];callMode='chat';mem=['Hôm nay bạn hơi mệt'];const p=livePrompt();callMode=o;mem=[];
+  if(!/SPEAK ONLY ENGLISH/.test(p))r.push('chế độ tâm sự thiếu luật chỉ nói tiếng Anh');if(!/NOT A LESSON/.test(p))r.push('thiếu luật không dạy');if(/band|mock Speaking/.test(p))r.push('còn nội dung IELTS');if(!/Hôm nay bạn hơi mệt/.test(p))r.push('không nạp trí nhớ');
+  const b=[...document.querySelectorAll('#segMode button')];if(b.length!==2)r.push('thiếu nút chế độ');return r})()`);
+check(!chat?.length, 'chế độ Tâm sự: không dạy · không IELTS · nạp trí nhớ · chỉ nói tiếng Anh', chat?.join('; ') || JSON.stringify(chat));
 const ci = await ev(`(()=>{document.querySelector('nav button[data-view=vRoad]').click();const k=document.getElementById('road').children.length;document.querySelector('nav button[data-view=vChat]').click();document.getElementById('openSet').click();const d=document.getElementById('set').open;document.getElementById('set').close();return {k,d}})()`);
 check(ci?.k > 2 && ci?.d, 'tab IELTS dựng được, hộp Cài đặt mở được', JSON.stringify(ci));
 
