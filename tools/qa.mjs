@@ -165,10 +165,15 @@ const lang = await ev(`(()=>{const p=livePrompt(),r=[];if(!/SPEAK ONLY ENGLISH/.
 check(!lang?.length, 'Sam chỉ nói tiếng Anh · bộ lọc chữ lạ · hiển thị 💡 ✏️ 🗣', lang?.join('; ') || JSON.stringify(lang));
 const chat = await ev(`(()=>{const o=callMode,r=[];callMode='chat';mem=['Hôm nay bạn hơi mệt'];const p=livePrompt();callMode=o;mem=[];
   if(!/SPEAK ONLY ENGLISH/.test(p))r.push('chế độ tâm sự thiếu luật chỉ nói tiếng Anh');if(!/NOT A LESSON/.test(p))r.push('thiếu luật không dạy');if(/band|mock Speaking/.test(p))r.push('còn nội dung IELTS');if(!/Hôm nay bạn hơi mệt/.test(p))r.push('không nạp trí nhớ');
-  const b=[...document.querySelectorAll('#segMode button')];if(b.length!==2)r.push('thiếu nút chế độ');
+  const b=[...document.querySelectorAll('#segMode button')];if(b.length!==3)r.push('thiếu nút chế độ');
   callMode='chat';mem=['Sếp hay nhắn tối'];const t=systemPrompt();callMode=o;mem=[];
-  if(/IELTS coach|band descriptors/.test(t))r.push('chat chữ Tâm sự còn nội dung IELTS');if(!/WORK REPLIES/.test(t)||!/A\) /.test(t))r.push('thiếu mục soạn tin trả lời sếp');if(!/Sếp hay nhắn tối/.test(t))r.push('chat chữ không nạp trí nhớ');if(document.querySelectorAll('#segMode2 button').length!==2)r.push('thiếu nút chế độ trong tab chat');return r})()`);
+  if(/IELTS coach|band descriptors/.test(t))r.push('chat chữ Tâm sự còn nội dung IELTS');if(!/WORK REPLIES/.test(t)||!/A\) /.test(t))r.push('thiếu mục soạn tin trả lời sếp');if(!/Sếp hay nhắn tối/.test(t))r.push('chat chữ không nạp trí nhớ');if(document.querySelectorAll('#segMode2 button').length!==3)r.push('thiếu nút chế độ trong tab chat');return r})()`);
 check(!chat?.length, 'chế độ Tâm sự: không dạy · không IELTS · nạp trí nhớ · chỉ nói tiếng Anh', Array.isArray(chat) ? chat.join('; ') : JSON.stringify(chat));
+const zh = await ev(`(()=>{const o=callMode,r=[];callMode='zh';hskMem=['Hay sai thanh ba'];const v=livePrompt(),t=systemPrompt();callMode=o;hskMem=[];
+  if(!/HSK 3/.test(v)||!/SPEAK MANDARIN/.test(v))r.push('prompt gọi thiếu HSK3/tiếng Trung');if(/SPEAK ONLY ENGLISH/.test(v))r.push('prompt tiếng Trung còn luật chỉ tiếng Anh');
+  if(!/Hay sai thanh ba/.test(v)||!/Hay sai thanh ba/.test(t))r.push('không nạp ghi chú tiến độ');if(!/🗣 /.test(t))r.push('chat chữ thiếu dòng 🗣');
+  if(FOREIGN_ZH.test('你好，我是Sam'))r.push('bộ lọc chặn chữ Hán khi học tiếng Trung');if(!FOREIGN_ZH.test('こんにちは')||!FOREIGN_ZH.test('안녕'))r.push('bộ lọc không bắt tiếng Nhật/Hàn');return r})()`);
+check(!zh?.length, 'chế độ HSK3: dạy tiếng Trung · cho phép chữ Hán · nạp tiến độ', Array.isArray(zh) ? zh.join('; ') : JSON.stringify(zh));
 const ci = await ev(`(()=>{document.querySelector('nav button[data-view=vRoad]').click();const k=document.getElementById('road').children.length;document.querySelector('nav button[data-view=vChat]').click();document.getElementById('openSet').click();const d=document.getElementById('set').open;document.getElementById('set').close();return {k,d}})()`);
 check(ci?.k > 2 && ci?.d, 'tab IELTS dựng được, hộp Cài đặt mở được', JSON.stringify(ci));
 
