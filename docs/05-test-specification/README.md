@@ -15,6 +15,7 @@
 | A-physics | Mưa: ≥ 20 va chạm tán trong 5 s và lọt dưới < 30%; tuyết: độ đọng tăng dần |
 | A-chat | Chế độ Tâm sự: prompt có luật chỉ nói tiếng Anh + không dạy, không còn nội dung IELTS, nạp ghi chú trí nhớ; có 2 nút chọn chế độ |
 | A-hsk | Chế độ HSK3: prompt gọi + chat có HSK 3, nạp ghi chú tiến độ, chat chữ có dòng 🗣, bộ lọc cho chữ Hán nhưng vẫn chặn Nhật/Hàn |
+| A-drill | Prompt chế độ Học (gọi + chat chữ) chứa PHRASE DRILL: phản ứng hài, câu đúng theo ngữ cảnh, bắt nói lại |
 | A-lang | Luật "chỉ nói tiếng Anh" có trong lời dặn; `FOREIGN` bắt đúng; |
 | A-chat | Dòng 💡 ✏️ 🗣 có kiểu riêng; tab IELTS và Cài đặt mở được |
 | A-console | Không lỗi console/exception cả phiên |

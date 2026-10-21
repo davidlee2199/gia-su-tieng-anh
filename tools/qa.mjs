@@ -173,6 +173,8 @@ const zh = await ev(`(()=>{const o=callMode,r=[];callMode='zh';hskMem=['Hay sai 
   if(!/HSK 3/.test(v)||!/SPEAK MANDARIN/.test(v))r.push('prompt gọi thiếu HSK3/tiếng Trung');if(/SPEAK ONLY ENGLISH/.test(v))r.push('prompt tiếng Trung còn luật chỉ tiếng Anh');
   if(!/Hay sai thanh ba/.test(v)||!/Hay sai thanh ba/.test(t))r.push('không nạp ghi chú tiến độ');if(!/🗣 /.test(t))r.push('chat chữ thiếu dòng 🗣');
   if(FOREIGN_ZH.test('你好，我是Sam'))r.push('bộ lọc chặn chữ Hán khi học tiếng Trung');if(!FOREIGN_ZH.test('こんにちは')||!FOREIGN_ZH.test('안녕'))r.push('bộ lọc không bắt tiếng Nhật/Hàn');return r})()`);
+const drill = await ev(`(()=>{const o=callMode;callMode='learn';const v=livePrompt(),t=systemPrompt();callMode=o;return [/PHRASE DRILL/.test(v)?'':'prompt gọi thiếu PHRASE DRILL',/PHRASE DRILL/.test(t)?'':'prompt chat thiếu PHRASE DRILL'].filter(Boolean)})()`);
+check(!drill?.length, 'chế độ Học: có cách dạy phrase drill (phản ứng hài + bắt nói lại)', Array.isArray(drill) ? drill.join('; ') : JSON.stringify(drill));
 check(!zh?.length, 'chế độ HSK3: dạy tiếng Trung · cho phép chữ Hán · nạp tiến độ', Array.isArray(zh) ? zh.join('; ') : JSON.stringify(zh));
 const ci = await ev(`(()=>{document.querySelector('nav button[data-view=vRoad]').click();const k=document.getElementById('road').children.length;document.querySelector('nav button[data-view=vChat]').click();document.getElementById('openSet').click();const d=document.getElementById('set').open;document.getElementById('set').close();return {k,d}})()`);
 check(ci?.k > 2 && ci?.d, 'tab IELTS dựng được, hộp Cài đặt mở được', JSON.stringify(ci));
