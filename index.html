@@ -170,7 +170,7 @@
   <div id="callStatus" class="glass"></div>
   <div class="cap glass" id="callYou"></div>
   <div class="cap glass" id="callSam"></div>
-  <div class="seg" id="segMode" role="group" aria-label="Chế độ gọi"><button data-m="learn">📚 Học</button><button data-m="chat">💬 Tâm sự</button><button data-m="zh">🀄 HSK3</button></div>
+  <div class="seg" id="segMode" role="group" aria-label="Chế độ gọi"><button data-m="learn">📚 Học</button><button data-m="chat">💬 Tâm sự</button><button data-m="roast">😈 Cục súc</button><button data-m="zh">🀄 HSK3</button></div>
   <div class="callBtns" id="callIdle">
     <button class="cb" id="callText"><i class="glass"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg></i>Nhắn tin</button>
     <button class="cb go" id="callGo"><i><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></i>Gọi Sam</button>
@@ -190,7 +190,7 @@
 
 <section id="vChat" class="view">
   <main id="chat"></main>
-  <div class="seg modeSeg" id="segMode2" role="group" aria-label="Chế độ chat"><button data-m="learn">📚 Học</button><button data-m="chat">💬 Tâm sự · việc</button><button data-m="zh">🀄 HSK3</button></div>
+  <div class="seg modeSeg" id="segMode2" role="group" aria-label="Chế độ chat"><button data-m="learn">📚 Học</button><button data-m="chat">💬 Tâm sự · việc</button><button data-m="roast">😈 Cục súc</button><button data-m="zh">🀄 HSK3</button></div>
   <div id="modebar" hidden><span id="modeText"></span><button id="stop">Dừng</button></div>
   <footer>
     <button id="mic" aria-label="Nói"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg></button>
@@ -291,6 +291,7 @@ let profile = load('ie_profile', { band: '', weak: [], note: '' }); // band = ư
 let scores = load('ie_scores', {});  // { 'B6-04': {score: 8, date} }
 let tests = load('ie_tests', []);    // thi thử: [{date, kind, overall, crit:{...}}]
 let callMode = load('gs_mode', 'learn'); // learn = gia sư IELTS · chat = tâm sự, trò chuyện thường ngày · zh = dạy tiếng Trung HSK3
+let phrMem = load('gs_phr', []);     // câu tiếng Anh mày hay nói sai (chế độ Cục súc), chỉ lưu trên máy
 let hskMem = load('gs_hsk', []);     // ghi chú tiến độ tiếng Trung (từ đã học, âm điệu hay sai), chỉ lưu trên máy
 let mem = load('gs_mem', []);        // ghi chú ngắn Sam rút ra sau mỗi buổi tâm sự (chỉ lưu trên máy)
 let hist = load('ie_hist', []);      // {role:'user'|'model', text}
@@ -321,6 +322,9 @@ REHEARSAL: if they want to practise a hard conversation, ask who the person is a
 SAFETY: you are a friend, not a therapist, doctor or lawyer. For self-harm, abuse or a real crisis, stay warm and encourage reaching out to someone they trust or a local helpline.
 MEMORY: when you learn something worth remembering, silently append at the very end <memory>["short Vietnamese note", ...]</memory> (1–3 notes, one short line each, no full names, addresses, phone or ID numbers). Never mention it.`;
 }
+const ROAST_BODY = `You are Sam in "CỤC SÚC" mode: a rough, foul-mouthed, hilarious best friend who beats real spoken English into the learner with loving abuse — like a sassy rabbit that roasts every unnatural sentence. THE GAME: they ask "<Vietnamese phrase> tiếng Anh nói sao?" or try an English sentence. If it is word-by-word Vietnamese-English or sounds unnatural (like "wash my head" for gội đầu), explode first: shout, mock-horror, absurd comparisons, swear casually ("trời má ơi", "đm", "vl", "fuck's sake") — short and punchy. Roast the SENTENCE and their habits, never them as a person. Then give the natural native phrase once, slowly and clearly, with a real-life situation. Then bark "Nói lại coi!" and keep drilling (sounds, stress, rhythm, final consonants) with fresh roasts until they get it right; when they nail it, celebrate over the top, add ONE related phrase, and demand their next one. Never move on before they say it right at least once. Already natural? Praise it grudgingly and show a cooler way.
+LANGUAGE: your reactions and jokes are in casual Vietnamese with "tao/mày"; every English phrase you teach is spoken in clear natural English. Each turn is short (1–3 sentences), high energy.
+LIMITS: swearing is for comic effect only. Never hateful, never racist or sexist, no insults about looks, family, health or background, nothing sexual, and drop the roast and be gentle at once if they sound genuinely upset or ask you to stop. If they ask to switch style, play a dramatic soap-opera queen or a tipsy pirate captain with the same teaching.`;
 const HSK_BODY = `You are Sam, a warm, patient native Mandarin speaker and an experienced HSK teacher, teaching a Vietnamese adult at HSK 3 level of the NEW HSK 3.0 standard (levels 1–3 together are about 970 words and 900 characters; if unsure whether a word is in, use an easier one). Stay inside HSK 3.0 levels 1–3 vocabulary and grammar; introduce at most 2–3 new words per turn.
 SYLLABUS to cycle through: daily topics (shopping, ordering food, directions, doctor, weather, travel, work, hobbies, family, time), measure words, 了/过/着, 比 comparisons, 把 sentences (simple), 虽然…但是, 如果…就, 一边…一边, 越来越, 因为…所以, 会/能/可以, 吧/呢/吗, simple result and direction complements (看见, 听懂, 出来, 回去), 的/地/得.
 VIETNAMESE ADVANTAGE: whenever a word has a Sino-Vietnamese reading (âm Hán Việt), point it out in a few words (e.g. 学生 = học sinh, 电话 = điện thoại) — it makes words stick. Warn about false friends.
@@ -335,7 +339,17 @@ ${about}
 - ${hskMem.join(String.fromCharCode(10) + '- ')}
 ` : ''}When you learn something worth remembering (words learned, tones or grammar they keep missing), silently append at the very end <memory>["short Vietnamese note", ...]</memory> (1–3 notes). Never mention it.`;
 }
+function roastTextPrompt() {
+  return `${ROAST_BODY}
+This is a TEXT chat. Plain text, no markdown. Each reply: a short furious reaction in Vietnamese, then the natural English phrase alone on a line starting with "🗣 ", then ONE short "Nói lại coi!" challenge (they can type it or use the mic). When they answer, check spelling, grammar and naturalness (you can't hear them): roast or celebrate. At most one line starting with "✏️ " when a fix needs a quick explanation.
+${about ? `About them, in their own words:
+${about}
+` : ''}${phrMem.length ? `Phrases they got wrong before (throw one back later as a surprise quiz, don't recite the list):
+- ${phrMem.join(String.fromCharCode(10) + '- ')}
+` : ''}When they get a phrase wrong or learn a good one, silently append at the very end <memory>["short Vietnamese note, e.g. gội đầu = wash my hair, không phải wash my head"]</memory> (1–3 notes). Never mention it.`;
+}
 function systemPrompt() {
+  if (callMode === 'roast') return roastTextPrompt();
   if (callMode === 'zh') return zhTextPrompt();
   if (callMode === 'chat') return chatTextPrompt();
   const u = unitById(unit);
@@ -404,8 +418,7 @@ function takeTags(text) {
     } catch {}
   }
   const mm = text.match(/<memory>([\s\S]*?)<\/memory>/);
-  if (mm && callMode === 'chat') try { mem = [...new Set([...mem, ...JSON.parse(mm[1]).map(x => String(x).slice(0, 160))])].slice(-30); store('gs_mem', mem); } catch {}
-  if (mm && callMode === 'zh') try { hskMem = [...new Set([...hskMem, ...JSON.parse(mm[1]).map(x => String(x).slice(0, 160))])].slice(-30); store('gs_hsk', hskMem); } catch {}
+  if (mm && callMode !== 'learn') try { addNotes(JSON.parse(mm[1])); } catch {}
   if (finished) setMode('');
   showLevel();
   return text.replace(/<(profile|score|band|memory)>[\s\S]*?(<\/\1>|$)/g, '').replace(/<\/?done\s*\/?>/g, '').trim();
@@ -588,6 +601,12 @@ function startLesson(id) { unit = id; store('ie_unit', unit); start(`[LESSON ${i
 
 // Nhận giọng nói. Nói chuyện thường: nói xong tự gửi. Lúc thi Speaking/Writing: chữ nối vào ô nhập,
 // nói nhiều lần được (Part 2 dài 1–2 phút), xong bấm ➤ mới gửi.
+const addNotes = notes => {
+  const n = (notes || []).map(x => String(x).slice(0, 160)), add = a => [...new Set([...a, ...n])].slice(-30);
+  if (callMode === 'zh') { hskMem = add(hskMem); store('gs_hsk', hskMem); }
+  else if (callMode === 'roast') { phrMem = add(phrMem); store('gs_phr', phrMem); }
+  else if (callMode === 'chat') { mem = add(mem); store('gs_mem', mem); }
+};
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 if (SR) {
   const rec = new SR();
@@ -633,7 +652,7 @@ const LIVE_MODEL = 'gemini-3.8-live', LIVE_VOICE = 'Aoede';
 const LIVE_TOOLS = [{ functionDeclarations: [
   { name: 'save_profile', description: "Save your current estimate of the learner's IELTS speaking band and weak points",
     parameters: { type: 'OBJECT', properties: { band: { type: 'NUMBER' }, weak: { type: 'ARRAY', items: { type: 'STRING' } }, note: { type: 'STRING' } }, required: ['band'] } },
-  { name: 'save_memory', description: 'Chat and Chinese modes only: save short notes about what the friend shared (people, feelings, plans, open threads) so you can remember next time',
+  { name: 'save_memory', description: 'Chat, Chinese and roast modes only: save short notes about what the friend shared (people, feelings, plans, open threads) so you can remember next time',
     parameters: { type: 'OBJECT', properties: { notes: { type: 'ARRAY', items: { type: 'STRING' } } }, required: ['notes'] } },
   { name: 'save_speaking_result', description: 'Save the final scores of a finished mock IELTS Speaking test',
     parameters: { type: 'OBJECT', properties: { overall: { type: 'NUMBER' }, FC: { type: 'NUMBER' }, LR: { type: 'NUMBER' }, GRA: { type: 'NUMBER' }, P: { type: 'NUMBER' } }, required: ['overall', 'FC', 'LR', 'GRA', 'P'] } },
@@ -667,7 +686,18 @@ ${about}
 ` : ''}Every few minutes and near the end, call save_memory with 1–5 short Vietnamese notes (new words learned, tones or grammar they keep missing). Never mention this function out loud.
 Remember: only Mandarin and simple Vietnamese — no English.`;
 }
+function roastPrompt() {
+  return `LANGUAGE RULE: casual Vietnamese for your reactions and jokes, clear English for the phrases you teach — no other language. You fully understand their Vietnamese and accented English.
+${ROAST_BODY}
+This is a live VOICE call, so judge their pronunciation too (final consonants, -s/-ed, word stress, /θ ð/): say the target phrase slowly and cleanly, tell them honestly what was off, and make them repeat.
+${about ? `About them, in their own words:
+${about}
+` : ''}${phrMem.length ? `Phrases they got wrong before (surprise them with one later, don't recite the list):
+- ${phrMem.join(String.fromCharCode(10) + '- ')}
+` : ''}Every few minutes and near the end, call save_memory with 1–5 short Vietnamese notes (phrases they got wrong or learned). Never mention this function out loud.`;
+}
 function livePrompt() {
+  if (callMode === 'roast') return roastPrompt();
   if (callMode === 'zh') return zhPrompt();
   if (callMode === 'chat') return chatPrompt();
   const recent = hist.slice(-12).filter(m => !cmdLabel(m.text)).map(m => (m.role === 'user' ? 'Learner: ' : 'Sam: ') + m.text.replace(/\s+/g, ' ')).join('\n');
@@ -750,15 +780,14 @@ function onLive(L, m, firstText) {
   if (live !== L) return;
   if (m.setupComplete) {
     L.ready = true; callUI('listening');
-    L.ws.send(JSON.stringify({ clientContent: { turns: [{ role: 'user', parts: [{ text: firstText || (callMode === 'zh' ? '(The call just connected. Greet me in simple Mandarin like a friendly teacher, then ask me one easy HSK 2 question.)' : callMode === 'chat' ? '(The call just connected. Greet me like a close friend picking up the phone, and ask how my day really is.)' : '(The call just connected. Greet me warmly like a friend picking up the phone.)') }] }], turnComplete: true } }));
+    L.ws.send(JSON.stringify({ clientContent: { turns: [{ role: 'user', parts: [{ text: firstText || (callMode === 'roast' ? '(The call just connected. Greet me in your rough, sassy style in Vietnamese, one or two lines, and dare me to throw you a Vietnamese phrase to translate.)' : callMode === 'zh' ? '(The call just connected. Greet me in simple Mandarin like a friendly teacher, then ask me one easy HSK 2 question.)' : callMode === 'chat' ? '(The call just connected. Greet me like a close friend picking up the phone, and ask how my day really is.)' : '(The call just connected. Greet me warmly like a friend picking up the phone.)') }] }], turnComplete: true } }));
     return;
   }
   if (m.toolCall) {
     const fs = m.toolCall.functionCalls || [];
     for (const f of fs) try {
       if (f.name === 'save_profile' && callMode === 'learn') applyProfile(f.args || {}, false);
-      if (f.name === 'save_memory' && callMode === 'zh') { hskMem = [...new Set([...hskMem, ...(f.args?.notes || []).map(x => String(x).slice(0, 160))])].slice(-30); store('gs_hsk', hskMem); }
-      if (f.name === 'save_memory' && callMode === 'chat') { mem = [...new Set([...mem, ...(f.args?.notes || []).map(x => String(x).slice(0, 160))])].slice(-30); store('gs_mem', mem); }
+      if (f.name === 'save_memory' && callMode !== 'learn') addNotes(f.args?.notes);
       if (f.name === 'save_speaking_result') saveExam('Speaking', f.args || {});
     } catch {}
     L.ws.send(JSON.stringify({ toolResponse: { functionResponses: fs.map(f => ({ id: f.id, name: f.name, response: { ok: true } })) } }));
@@ -810,7 +839,7 @@ function callEnd(L, msg) {
   callUI('idle', msg);
 }
 
-const setCallMode = m => { callMode = m; store('gs_mode', m); document.querySelectorAll('.modeSeg button, #segMode button').forEach(b => b.classList.toggle('on', b.dataset.m === m)); $('#text').placeholder = m === 'zh' ? 'Gõ tiếng Trung, pinyin hoặc tiếng Việt…' : m === 'chat' ? 'Tâm sự, hoặc dán tin của sếp…' : 'Nhắn cho Sam…'; };
+const setCallMode = m => { callMode = m; store('gs_mode', m); document.querySelectorAll('.modeSeg button, #segMode button').forEach(b => b.classList.toggle('on', b.dataset.m === m)); $('#text').placeholder = m === 'roast' ? 'Hỏi kiểu: gội đầu tiếng Anh nói sao?' : m === 'zh' ? 'Gõ tiếng Trung, pinyin hoặc tiếng Việt…' : m === 'chat' ? 'Tâm sự, hoặc dán tin của sếp…' : 'Nhắn cho Sam…'; };
 document.querySelectorAll('.modeSeg button, #segMode button').forEach(b => b.onclick = () => setCallMode(b.dataset.m)); setCallMode(callMode);
 $('#callGo').onclick = () => callStart();
 setTimeout(() => window.Avatar?.init(), 300); // tải sẵn nhân vật 3D (~9 MB, lần đầu) khi mở app

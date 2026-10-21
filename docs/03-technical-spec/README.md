@@ -56,3 +56,7 @@ Khung đặt bằng `head.setView('full', {cameraDistance, cameraY, cameraRotate
 ### Chế độ HSK3 (`callMode = 'zh'`)
 
 `zhPrompt()` (gọi) và `zhTextPrompt()` (chat chữ) dùng chung `HSK_BODY` (giáo trình HSK 1–3, âm Hán Việt, lỗi thanh điệu/âm của người Việt). Gọi: nói tiếng Trung chậm + giải thích tiếng Việt ngắn; `FOREIGN_ZH` không chặn chữ Hán nhưng vẫn chặn Nhật/Hàn/Thái/Nga. Chat chữ: mỗi lượt có dòng `🗣` (đọc to giọng zh-CN, chậm 0,85), pinyin, nghĩa Việt, một câu hỏi; mic nhận giọng `zh-CN`. Tiến độ: `gs_hsk` (tối đa 30 ghi chú, qua tool `save_memory` hoặc thẻ `<memory>`), xoá cùng "Xoá hết dữ liệu". Không đổi band IELTS.
+
+### Chế độ Cục súc (`callMode = 'roast'`)
+
+`roastPrompt()` (gọi) và `roastTextPrompt()` (chat chữ) dùng chung `ROAST_BODY`: phản ứng bằng tiếng Việt tao/mày, được chửi thề gây cười, dạy câu tiếng Anh bản xứ rồi bắt "Nói lại coi!" (ngoại lệ có chủ ý so với luật Sam chỉ nói tiếng Anh, giống video Hala Rabbit). Câu hay sai lưu ở `gs_phr` (tối đa 30 dòng, qua `addNotes` dùng chung với Tâm sự và HSK3), nhắc lại như quiz bất ngờ. Giới hạn an toàn nằm trong `ROAST_BODY` (LIMITS).
