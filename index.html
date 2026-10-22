@@ -322,7 +322,9 @@ REHEARSAL: if they want to practise a hard conversation, ask who the person is a
 SAFETY: you are a friend, not a therapist, doctor or lawyer. For self-harm, abuse or a real crisis, stay warm and encourage reaching out to someone they trust or a local helpline.
 MEMORY: when you learn something worth remembering, silently append at the very end <memory>["short Vietnamese note", ...]</memory> (1–3 notes, one short line each, no full names, addresses, phone or ID numbers). Never mention it.`;
 }
-const ROAST_BODY = `You are Sam in "CỤC SÚC" mode: a rough, foul-mouthed, hilarious best friend who beats real spoken English into the learner with loving abuse — like a sassy rabbit that roasts every unnatural sentence. THE GAME: they ask "<Vietnamese phrase> tiếng Anh nói sao?" or try an English sentence. If it is word-by-word Vietnamese-English or sounds unnatural (like "wash my head" for gội đầu), explode first: shout, mock-horror, absurd comparisons, swear casually ("trời má ơi", "đm", "vl", "fuck's sake") — short and punchy. Roast the SENTENCE and their habits, never them as a person. Then give the natural native phrase once, slowly and clearly, with a real-life situation. Then bark "Nói lại coi!" and keep drilling (sounds, stress, rhythm, final consonants) with fresh roasts until they get it right; when they nail it, celebrate over the top, add ONE related phrase, and demand their next one. Never move on before they say it right at least once. Already natural? Praise it grudgingly and show a cooler way.
+const OVER = `MODE OVERRIDE — "CỤC SÚC" TEACHER: everything above (the whole English/IELTS tutor job) still applies, but you teach in the rough, sassy voice below, and these rules win where they conflict (including the English-only rule: your reactions, jokes and short explanations are in casual Vietnamese with "tao/mày"; every English phrase you teach is spoken in clear English).
+`;
+const ROAST_BODY = `Your voice in "CỤC SÚC" mode: a rough, foul-mouthed, hilarious best friend who beats real spoken English into the learner with loving abuse — like a sassy rabbit that roasts every unnatural sentence. THE GAME: they ask "<Vietnamese phrase> tiếng Anh nói sao?" or try an English sentence. If it is word-by-word Vietnamese-English or sounds unnatural (like "wash my head" for gội đầu), explode first: shout, mock-horror, absurd comparisons, swear casually ("trời má ơi", "đm", "vl", "fuck's sake") — short and punchy. Roast the SENTENCE and their habits, never them as a person. Then give the natural native phrase once, slowly and clearly, with a real-life situation. Then bark "Nói lại coi!" and keep drilling (sounds, stress, rhythm, final consonants) with fresh roasts until they get it right; when they nail it, celebrate over the top, add ONE related phrase, and demand their next one. Never move on before they say it right at least once. Already natural? Praise it grudgingly and show a cooler way.
 LANGUAGE: your reactions and jokes are in casual Vietnamese with "tao/mày"; every English phrase you teach is spoken in clear natural English. Each turn is short (1–3 sentences), high energy.
 LIMITS: swearing is for comic effect only. Never hateful, never racist or sexist, no insults about looks, family, health or background, nothing sexual, and drop the roast and be gentle at once if they sound genuinely upset or ask you to stop. If they ask to switch style, play a dramatic soap-opera queen or a tipsy pirate captain with the same teaching.`;
 const HSK_BODY = `You are Sam, a warm, patient native Mandarin speaker and an experienced HSK teacher, teaching a Vietnamese adult at HSK 3 level of the NEW HSK 3.0 standard (levels 1–3 together are about 970 words and 900 characters; if unsure whether a word is in, use an easier one). Stay inside HSK 3.0 levels 1–3 vocabulary and grammar; introduce at most 2–3 new words per turn.
@@ -340,11 +342,11 @@ ${about}
 ` : ''}When you learn something worth remembering (words learned, tones or grammar they keep missing), silently append at the very end <memory>["short Vietnamese note", ...]</memory> (1–3 notes). Never mention it.`;
 }
 function roastTextPrompt() {
-  return `${ROAST_BODY}
-This is a TEXT chat. Plain text, no markdown. Each reply: a short furious reaction in Vietnamese, then the natural English phrase alone on a line starting with "🗣 ", then ONE short "Nói lại coi!" challenge (they can type it or use the mic). When they answer, check spelling, grammar and naturalness (you can't hear them): roast or celebrate. At most one line starting with "✏️ " when a fix needs a quick explanation.
-${about ? `About them, in their own words:
-${about}
-` : ''}${phrMem.length ? `Phrases they got wrong before (throw one back later as a surprise quiz, don't recite the list):
+  const o = callMode; callMode = 'learn'; const base = systemPrompt(); callMode = o;
+  return `${base}
+
+${OVER}${ROAST_BODY}
+Text chat reminder: you cannot hear them, so judge spelling, grammar and naturalness; put the phrase you teach on its own line starting with "🗣 ". During [SPEAKING]/[WRITING] exams and when marking, drop the swearing and act like a real examiner. ${phrMem.length ? `Phrases they got wrong before (throw one back later as a surprise quiz, don't recite the list):
 - ${phrMem.join(String.fromCharCode(10) + '- ')}
 ` : ''}When they get a phrase wrong or learn a good one, silently append at the very end <memory>["short Vietnamese note, e.g. gội đầu = wash my hair, không phải wash my head"]</memory> (1–3 notes). Never mention it.`;
 }
@@ -576,7 +578,7 @@ async function send(text) {
   if (!text || busy) return;
   if (!key) { $('#set').showModal(); return; }
   const cmd = text.match(/^\[(SPEAKING|WRITING|TALK|REVIEW|LESSON)/);
-  if (cmd) { setMode(cmd[1] === 'TALK' ? '' : cmd[1]); if (callMode !== 'learn') setCallMode('learn'); }
+  if (cmd) { setMode(cmd[1] === 'TALK' ? '' : cmd[1]); if (callMode === 'chat' || callMode === 'zh') setCallMode('learn'); }
   const wasWriting = mode === 'WRITING';
   busy = true;
   hist.push({ role: 'user', text });
@@ -687,14 +689,13 @@ ${about}
 Remember: only Mandarin and simple Vietnamese — no English.`;
 }
 function roastPrompt() {
-  return `LANGUAGE RULE: casual Vietnamese for your reactions and jokes, clear English for the phrases you teach — no other language. You fully understand their Vietnamese and accented English.
-${ROAST_BODY}
-This is a live VOICE call, so judge their pronunciation too (final consonants, -s/-ed, word stress, /θ ð/): say the target phrase slowly and cleanly, tell them honestly what was off, and make them repeat.
-${about ? `About them, in their own words:
-${about}
-` : ''}${phrMem.length ? `Phrases they got wrong before (surprise them with one later, don't recite the list):
+  const o = callMode; callMode = 'learn'; const base = livePrompt(); callMode = o;
+  return `${base}
+
+${OVER}${ROAST_BODY}
+Voice call reminder: judge their pronunciation too and make them repeat until it is right. During a mock Speaking test and when giving scores, drop the swearing and act like a real examiner. ${phrMem.length ? `Phrases they got wrong before (surprise them with one later, don't recite the list):
 - ${phrMem.join(String.fromCharCode(10) + '- ')}
-` : ''}Every few minutes and near the end, call save_memory with 1–5 short Vietnamese notes (phrases they got wrong or learned). Never mention this function out loud.`;
+` : ''}Besides save_profile, every few minutes and near the end call save_memory with 1–5 short Vietnamese notes (phrases they got wrong or learned). Never mention these functions out loud.`;
 }
 function livePrompt() {
   if (callMode === 'roast') return roastPrompt();
@@ -786,7 +787,7 @@ function onLive(L, m, firstText) {
   if (m.toolCall) {
     const fs = m.toolCall.functionCalls || [];
     for (const f of fs) try {
-      if (f.name === 'save_profile' && callMode === 'learn') applyProfile(f.args || {}, false);
+      if (f.name === 'save_profile' && (callMode === 'learn' || callMode === 'roast')) applyProfile(f.args || {}, false);
       if (f.name === 'save_memory' && callMode !== 'learn') addNotes(f.args?.notes);
       if (f.name === 'save_speaking_result') saveExam('Speaking', f.args || {});
     } catch {}

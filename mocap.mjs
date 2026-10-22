@@ -57,7 +57,9 @@ function bindInfo(head) {
 
 const LEGS = /Leg|Foot/;
 async function buildClip(head, name, legs = false) {
-  const txt = await (await fetch(SRC + name + '.bvh')).text();
+  const res = await fetch(SRC + name + '.bvh');
+  if (!res.ok) throw new Error('tải mocap lỗi ' + res.status); // lỗi mạng/CDN thì thôi, không đem nội dung lỗi đi phân tích
+  const txt = await res.text();
   const { skeleton, clip } = new BVHLoader().parse(txt);
   const root = new THREE.Group(); root.add(skeleton.bones[0]);
   const J = Object.fromEntries(skeleton.bones.map(b => [b.name, b]));
@@ -121,6 +123,6 @@ export async function playMocap(head, name, repeat = 1, legs = /dance/.test(name
     if (!head.animClips.find(x => x.url === key + '-0')) head.animClips.push({ url: key + '-0', clip: item.clip, pose: item.pose });
     await head.playAnimation(key, null, item.clip.duration * repeat);
     return true;
-  } catch (e) { console.warn('mocap', name, e); return false; }
+  } catch (e) { cache.delete('mocap:' + name); console.warn('mocap', name, e); return false; } // xoá bản lỗi để lần sau thử tải lại
 }
-export const preloadMocap = (head, names) => names.forEach(n => { const k = 'mocap:' + n; if (!cache.has(k)) cache.set(k, buildClip(head, n)); });
+export const preloadMocap = (head, names) => names.forEach(n => { const k = 'mocap:' + n; if (!cache.has(k)) cache.set(k, buildClip(head, n).catch(e => { cache.delete(k); console.warn('mocap', n, e); })); });
