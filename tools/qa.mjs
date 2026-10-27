@@ -178,6 +178,19 @@ check(!drill?.length, 'chế độ Học: có cách dạy phrase drill (phản �
 const roast = await ev(`(()=>{const o=callMode,r=[];callMode='roast';phrMem=['gội đầu = wash my hair'];const v=livePrompt(),t=systemPrompt();callMode=o;phrMem=[];
   for(const [n,x] of [['gọi',v],['chat',t]]){if(!/CỤC SÚC/.test(x))r.push(n+': thiếu vai cục súc');if(!/Nói lại coi/.test(x))r.push(n+': thiếu bắt nói lại');if(!/CỤC SÚC/.test(x)||!/IELTS/.test(x))r.push(n+': mất phần gia sư IELTS');if(!/AMERICAN/.test(x))r.push(n+': thiếu vai người Mỹ bản xứ');if(!/Never hateful/.test(x))r.push(n+': thiếu giới hạn an toàn');if(!/gội đầu = wash my hair/.test(x))r.push(n+': không nạp câu từng sai')}return r})()`);
 check(!roast?.length, 'chế độ Cục súc: chửi yêu + bắt nói lại + giới hạn an toàn + nhớ câu sai', Array.isArray(roast) ? roast.join('; ') : JSON.stringify(roast));
+const road2 = await ev(`(()=>{const r=[],ids=[...UNITS,...EXTRA].map(u=>u.id);
+  if(GRAMMAR.length!==40||VOCAB.length!==40)r.push('thiếu bài ngữ pháp/từ vựng '+GRAMMAR.length+'/'+VOCAB.length);if(new Set(ids).size!==ids.length)r.push('trùng id bài');
+  if(!unitById('G2-04')||!unitById('V3-01'))r.push('unitById không tìm thấy bài G/V');
+  const u0=unit,m0=mode;unit='G2-04';let t=systemPrompt();if(!/GRAMMAR unit G2-04/.test(t))r.push('bài ngữ pháp dùng prompt sai');unit='V3-01';t=systemPrompt();if(!/VOCABULARY unit V3-01/.test(t)||!/<words>/.test(t))r.push('bài từ vựng thiếu thẻ words');unit='B5-01';t=systemPrompt();if(!/examiner rewards/.test(t))r.push('bài IELTS bị mất');unit=u0;
+  if(cmdLabel('[LESSON G3-05]')?.indexOf('G3-05')<0&&!/Mạo từ/.test(cmdLabel('[LESSON G3-05]')||''))r.push('nhãn lệnh bài G không nhận');
+  const v0=JSON.stringify(vocab),sc0=JSON.stringify(scores);vocab=[];addVocab(['Abandon = từ bỏ','abandon = trùng']);if(vocab.length!==1)r.push('addVocab không chống trùng');
+  if(dueWords().length!==0)r.push('từ mới không được hẹn ngày mai');vocab[0].due='2000-01-01';if(dueWords().length!==1)r.push('từ đến hạn không hiện');
+  reviewVocab({ok:['abandon']});if(vocab[0].box!==1||vocab[0].due<=new Date().toLocaleDateString('sv'))r.push('Leitner không lên hộp');reviewVocab({miss:['abandon']});if(vocab[0].box!==0)r.push('trả lời sai không về hộp 0');
+  vocab=JSON.parse(v0);scores=JSON.parse(sc0);
+  for(const k of ['G','V','I']){roadTab=k;try{renderRoad()}catch(e){r.push('renderRoad '+k+': '+e.message)}if(document.querySelectorAll('#road .card').length<3)r.push('lộ trình '+k+' ít thẻ');
+    const small=[...document.querySelectorAll('#road button')].filter(b=>Math.min(b.offsetWidth,b.offsetHeight)<40&&b.offsetWidth>0).length;if(small&&k!=='I')r.push('lộ trình '+k+' có '+small+' nút nhỏ hơn 40px')}
+  roadTab='I';return r})()`);
+check(!road2?.length, 'lộ trình Ngữ pháp + Từ vựng: 80 bài, prompt đúng loại, sổ từ Leitner, giao diện dựng được', Array.isArray(road2) ? road2.join('; ') : JSON.stringify(road2));
 check(!zh?.length, 'chế độ HSK3: dạy tiếng Trung · cho phép chữ Hán · nạp tiến độ', Array.isArray(zh) ? zh.join('; ') : JSON.stringify(zh));
 const ci = await ev(`(()=>{document.querySelector('nav button[data-view=vRoad]').click();const k=document.getElementById('road').children.length;document.querySelector('nav button[data-view=vChat]').click();document.getElementById('openSet').click();const d=document.getElementById('set').open;document.getElementById('set').close();return {k,d}})()`);
 check(ci?.k > 2 && ci?.d, 'tab IELTS dựng được, hộp Cài đặt mở được', JSON.stringify(ci));

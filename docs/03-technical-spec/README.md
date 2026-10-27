@@ -60,3 +60,7 @@ Khung đặt bằng `head.setView('full', {cameraDistance, cameraY, cameraRotate
 ### Chế độ Cục súc (`callMode = 'roast'`)
 
 `roastPrompt()` (gọi) và `roastTextPrompt()` (chat chữ) = prompt chế độ Học nguyên vẹn + lớp `OVER` + `ROAST_BODY` (vẫn lưu band qua `save_profile`; thi thử/chấm điểm thì bỏ chửi thề); người Mỹ bản xứ đường phố (tiếng lóng, nuốt âm, flap T, từ vựng Mỹ so với Anh); phần giọng: phản ứng bằng tiếng Việt tao/mày, được chửi thề gây cười, dạy câu tiếng Anh bản xứ rồi bắt "Nói lại coi!" (ngoại lệ có chủ ý so với luật Sam chỉ nói tiếng Anh, giống video Hala Rabbit). Câu hay sai lưu ở `gs_phr` (tối đa 30 dòng, qua `addNotes` dùng chung với Tâm sự và HSK3), nhắc lại như quiz bất ngờ. Giới hạn an toàn nằm trong `ROAST_BODY` (LIMITS).
+
+### Lộ trình Ngữ pháp & Từ vựng
+
+`GRAMMAR` (G1–G4) và `VOCAB` (V1–V4) = 40 bài mỗi mảng, gộp vào `EXTRA`; `unitById` tìm cả `UNITS` (IELTS) lẫn `EXTRA`. `lessonText(u)` chọn nội dung bài theo `u.track`. Điểm bài lưu chung `ie_scores`. Sổ từ `gs_vocab` (tối đa 600 từ, `addVocab`/`reviewVocab`/`dueWords`, Leitner hộp 0–4 → 1·3·7·14·30 ngày): Sam thêm từ bằng thẻ `<words>` cuối bài từ vựng; lệnh `[WORDS] a = nghĩa; b = nghĩa` ôn tối đa 10 từ đến hạn và trả `<review>{ok,miss}</review>`. `renderRoad` có 3 tab (`roadTab`, lưu `gs_road`).
